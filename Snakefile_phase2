@@ -1,0 +1,74 @@
+################################################################################
+# Snakefile_phase2 — Ampullaceana balthica 16S Microbiome Pipeline
+# Phase 2: Phylogeny → Alpha Rarefaction → Diversity → GLMMs
+#
+# Usage:
+#   conda activate qiime2-amplicon-2024.10
+#   snakemake -s Snakefile_phase2 --configfile config.yaml --cores 24
+#
+# Dry-run:
+#   snakemake -s Snakefile_phase2 --configfile config.yaml -n --dag | dot -Tpdf > dag_phase2.pdf
+#
+# Prerequisites:
+#   1. Phase 1 MUST be complete (taxa_freq table and taxa_seqs must exist)
+#   2. Open diversity_results_viz_Ampullaceana/alpha_rarefaction_curves.qzv
+#      at view.qiime2.org and identify the rarefaction depth.
+#   3. Update config.yaml:
+#        diversity.max_depth  → Median Frequency from taxa freq table
+#        diversity.raref_depth → where Shannon curve stabilizes
+#   4. Re-run this Snakefile.
+################################################################################
+
+configfile: "config.yaml"
+
+import os
+import glob
+
+# Sample detection (same as phase 1)
+_raw_dir  = config["raw"]["data_directory"]
+_tag_r1   = config["illumina"]["paired_end_tag_1"]
+SAMPLES = sorted([
+    os.path.basename(f).replace(_tag_r1 + ".fastq.gz", "")
+    for f in glob.glob(os.path.join(_raw_dir, f"*{_tag_r1}.fastq.gz"))
+])
+
+# Validate that config checkpoints have been set
+if config["diversity"]["max_depth"] == 0:
+    raise ValueError(
+        "diversity.max_depth is 0 in config.yaml!\n"
+        "Please check the taxa freq table visualization and set the correct value."
+    )
+if config["diversity"]["raref_depth"] == 0:
+    raise ValueError(
+        "diversity.raref_depth is 0 in config.yaml!\n"
+        "Please inspect the alpha rarefaction curve and set the correct value."
+    )
+
+# ── Include modular rule files ───────────────────────────────────────────────
+include: "rules/phylo_diversity.smk"
+include: "rules/glmm.smk"
+
+# ── Target rule: all final outputs of Phase 2 ───────────────────────────────
+rule all_phase2:
+    input:
+        # Phylogeny + rarefaction (inspect rarefaction curve BEFORE full diversity run)
+        config["directory_name"]["viz_dir_div"] + "/alpha_rarefaction_curves.qzv",
+        # Core diversity outputs
+        config["directory_name"]["viz_dir_div"] + "/faiths_pd_statistics.qzv",
+        config["directory_name"]["viz_dir_div"] + "/evenness_statistics.qzv",
+        config["directory_name"]["viz_dir_div"] + "/faiths_pd_anova.qzv",
+        # Beta diversity
+        config["directory_name"]["viz_dir_div"] + "/unweighted_unifrac_temp_significance.qzv",
+        config["directory_name"]["viz_dir_div"] + "/weighted_unifrac_temp_significance.qzv",
+        config["directory_name"]["viz_dir_div"] + "/unweighted_unifrac_diet_significance.qzv",
+        config["directory_name"]["viz_dir_div"] + "/weighted_unifrac_diet_significance.qzv",
+        # Differential abundance (ANCOMBC2)
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_temp.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_reference_20.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_diet.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_phosphorus.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv",
+        # GLMMs
+        "glmm_outputs/shannon_glmm_results.pdf",
+        "glmm_outputs/observed_features_glmm_results.pdf",
+        "glmm_outputs/glmm_pvalues.tsv"

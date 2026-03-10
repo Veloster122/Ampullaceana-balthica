@@ -1,0 +1,58 @@
+################################################################################
+# Snakefile_phase1 — Ampullaceana balthica 16S Microbiome Pipeline
+# Phase 1: QC → Demux → Feature Tables → Taxonomy
+#
+# Usage:
+#   conda activate qiime2-amplicon-2024.10
+#   snakemake -s Snakefile_phase1 --configfile config.yaml --cores 24
+#
+# Dry-run (validate DAG without running):
+#   snakemake -s Snakefile_phase1 --configfile config.yaml -n --dag | dot -Tpdf > dag_phase1.pdf
+#
+# !! CHECKPOINT after Phase 1 !!
+# Inspect visualizations_Ampullaceana/ampullaceana_demux.qzv at view.qiime2.org
+# Then update config.yaml:  trunc_f, trunc_r
+# Then re-run Phase 1 (Snakemake will only re-run DADA2 and downstream steps).
+################################################################################
+
+configfile: "config.yaml"
+
+import os
+import glob
+
+# ── Detect samples from the raw data directory ──────────────────────────────
+_raw_dir  = config["raw"]["data_directory"]
+_tag_r1   = config["illumina"]["paired_end_tag_1"]
+
+# Collect all sample IDs from R1 fastq files
+SAMPLES = sorted([
+    os.path.basename(f).replace(_tag_r1 + ".fastq.gz", "")
+    for f in glob.glob(os.path.join(_raw_dir, f"*{_tag_r1}.fastq.gz"))
+])
+
+if not SAMPLES:
+    raise ValueError(f"No samples found in {_raw_dir} with tag {_tag_r1}. "
+                     "Check config.yaml → raw.data_directory and illumina.paired_end_tag_1")
+
+print(f"[Phase 1] Found {len(SAMPLES)} samples: {SAMPLES[:3]}{'...' if len(SAMPLES) > 3 else ''}")
+
+# ── Include modular rule files ───────────────────────────────────────────────
+include: "rules/fastp_import.smk"
+include: "rules/qc_reports.smk"
+include: "rules/feature_table.smk"
+include: "rules/taxonomy.smk"
+
+# ── Target rule: all final outputs of Phase 1 ───────────────────────────────
+rule all_phase1:
+    input:
+        # QC reports
+        "qc_reports/raw/multiqc_report.html",
+        "qc_reports/filtered/multiqc_report.html",
+        # Demux visualization (CHECKPOINT 1 — inspect this before Phase 1 re-run)
+        config["directory_name"]["visualizations"] + "/ampullaceana_demux.qzv",
+        # Feature tables
+        config["directory_name"]["visualizations"] + "/" + config["tables"]["freq_tbl_viz"],
+        config["directory_name"]["visualizations"] + "/" + config["tables"]["seqs_rep_viz"],
+        # Taxonomy + bar plot  (CHECKPOINT 2 — download CSV for taxaVsSample / abundance)
+        config["directory_name"]["visualizations"] + "/taxa_bar_plots.qzv",
+        config["directory_name"]["visualizations"] + "/" + config["tables"]["taxa_freq_viz"]

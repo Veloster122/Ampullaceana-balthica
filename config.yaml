@@ -1,0 +1,76 @@
+---
+# ============================================================
+# Configuration file for Ampullaceana balthica microbiome pipeline
+# Edit ONLY this file between runs.
+# ============================================================
+
+raw:
+  data_directory: "00-Ampullaceana_balthica_raw_data/fastqs"  # relative to project root — works on any machine
+  metadata: "00-Ampullaceana_balthica_raw_data/Ampullaceana_balthica_metadata.tsv"
+  manifest: "manifest.tsv"  # already exists - will be skipped if present
+  threads: 20
+
+directory_name:
+  quality: "quality_Ampullaceana"
+  fastp: "fastp_reports_Ampullaceana"
+  artifact: "artifact_Ampullaceana"
+  visualizations: "visualizations_Ampullaceana"
+  phylogeny: "phylogeny_Ampullaceana"
+  viz_dir_div: "diversity_results_viz_Ampullaceana"
+  demux_export: "demux_export_Ampullaceana"  # for per-sample-fastq-counts.tsv
+
+illumina:
+  paired_end_tag_1: "_R1"
+  paired_end_tag_2: "_R2"
+  # Confirmed from raw read inspection: 341F / 806R primers
+  # Forward read starts with TAGAGT + CCTACGGGAGGCAGCAG (341F match)
+  primer_f: "CCTACGGGNGGCWGCAG"   # 341F
+  primer_r: "GACTACHVGGGTATCTAATCC"  # 806R
+
+denoise:
+  num_min_seq: 100  # minimum sequences per sample to keep
+  chimera_method: "consensus"   # options: consensus, none, pooled
+  chimeric_parent_over_abundance: 8
+  min_overlap: 12
+  trim_f: 2   # 5' trim forward (positions to cut from left)
+  trim_r: 2   # 5' trim reverse
+  # !! CHECKPOINT 1: Set trunc_f / trunc_r AFTER viewing demux.qzv !!
+  trunc_f: 0  # <-- UPDATE after checking demux visualization
+  trunc_r: 0  # <-- UPDATE after checking demux visualization
+
+tables:
+  freq_tbl: "Ampullaceana_freq_table.qza"
+  freq_tbl_viz: "Ampullaceana_freq_table.qzv"
+  seqs_rep: "Ampullaceana_rep_seqs.qza"
+  seqs_rep_viz: "Ampullaceana_rep_seqs.qzv"
+  taxa_freq: "freq_taxo_tbl.qza"
+  taxa_freq_viz: "freq_taxo_tbl.qzv"
+  taxa_seqs: "reps_taxo_seqs.qza"
+  taxa_seqs_viz: "reps_taxo_seqs.qzv"
+
+taxonomy:
+  version: 138.2
+  target: "SSURef_NR99"
+  classifier: "silva_16S_classifier.qza"
+  taxo_data: "Ampullaceana_taxonomy.qza"
+
+# Columns in the taxa bar plot CSV that are NOT taxa names
+discriminants:
+  - index
+  - Phosphorus
+  - Pop
+  - Temp
+  - Diet
+  - Box
+  - GUT
+
+diversity:
+  # !! CHECKPOINT 2: Set these AFTER viewing alpha rarefaction curve !!
+  max_depth: 0    # <-- UPDATE to Median Frequency from taxa freq table
+  raref_depth: 0  # <-- UPDATE to where alpha rarefaction stabilizes
+
+# Variables to test in ANOVA and beta diversity (from metadata)
+metadata_columns:
+  fixed_effects: "Temp + Diet + Phosphorus + Pop"  # for ANOVA and ANCOMBC2
+  random_effect: "Box"                              # for GLMMs
+...
