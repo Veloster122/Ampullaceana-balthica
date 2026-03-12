@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Ampullaceana balthica — 16S Gut Microbiome Snakemake Pipeline
 
 > **Species:** *Ampullaceana balthica*  
@@ -33,7 +32,7 @@ Ampullaceana balthica/
 ## Requirements
 
 ```bash
-conda activate qiime2-amplicon-2024.10
+conda activate qiime2-amplicon-2026.1 
 conda install -c bioconda snakemake fastp fastqc multiqc
 ```
 
@@ -134,6 +133,3 @@ snakemake -s Snakefile_phase1 --configfile config.yaml --dag | dot -Tpdf > dag_p
 
 Pipeline adapted from:  
 > DanielaDeodato. (2025). HonoMystes/R_temporaria_Metagenomics: v1.1.0. Zenodo. https://doi.org/10.5281/zenodo.18257526
-=======
-# Ampullaceana-balthica
->>>>>>> 4a337291ad035b54fde31b4aee6db200234e83ad

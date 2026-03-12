@@ -3,10 +3,12 @@
 # !! Run ONLY after setting trunc_f / trunc_r in config.yaml !!
 
 rule filter_samples:
-    """Filter out samples below the minimum sequence count threshold."""
+    """Filter out samples below the minimum sequence count threshold.
+    Uses the cutadapt-trimmed artifact (primers already removed).
+    """
     input:
-        demux  = config["directory_name"]["artifact"] + "/ampullaceana_demux.qza",
-        counts = config["directory_name"]["demux_export"] + "/per-sample-fastq-counts.tsv"
+        demux  = config["directory_name"]["artifact"] + "/ampullaceana_trimmed.qza",
+        counts = config["directory_name"]["trimmed_export"] + "/per-sample-fastq-counts.tsv"
     output:
         filtered = config["directory_name"]["artifact"] + "/filtered_demux.qza"
     params:
@@ -21,10 +23,76 @@ rule filter_samples:
         """
 
 
+rule ensure_nonempty_demux:
+    """Inspect filtered_demux.qza for empty FASTQ files and remove them.
+    Definitive workaround for DADA2 1.30.0 R bug: mcmapply(filterAndTrim)
+    crashes with a names-length mismatch when ANY sample FASTQ is empty.
+    Directly opens the QZA ZIP to detect empties, then exports/filters/reimports.
+    """
+    input:
+        demux = config["directory_name"]["artifact"] + "/filtered_demux.qza"
+    output:
+        demux_clean = config["directory_name"]["artifact"] + "/filtered_demux_clean.qza",
+        report      = config["directory_name"]["artifact"] + "/empty_samples_removed.txt"
+    run:
+        import zipfile, os, subprocess, shutil, re, tempfile
+        EMPTY_MAX = 100  # empty gzip stream is ~20-50 bytes on disk
+        # Step 1: quick peek — are there any suspiciously small FASTQ.gz files?
+        has_empty = False
+        with zipfile.ZipFile(str(input.demux), 'r') as zf:
+            for info in zf.infolist():
+                if '/data/' in info.filename and info.filename.endswith('.fastq.gz'):
+                    if info.compress_size < EMPTY_MAX:
+                        has_empty = True
+                        break
+        if not has_empty:
+            print("No empty FASTQ files detected — fast-copying artifact.")
+            shutil.copy(str(input.demux), str(output.demux_clean))
+            with open(str(output.report), 'w') as f:
+                f.write("No empty samples detected.\n")
+        else:
+            # Step 2: full export → filter → reimport
+            export_dir = tempfile.mkdtemp(prefix='demux_nonempty_')
+            try:
+                subprocess.run(["qiime", "tools", "export",
+                                "--input-path",  str(input.demux),
+                                "--output-path", export_dir], check=True)
+                fwd_re = re.compile(r'^(.+?)(_S\d+_L\d+)?_R1(_\d+)?\.fastq\.gz$')
+                lines  = ["sample-id\tforward-absolute-filepath\treverse-absolute-filepath"]
+                removed = []
+                for fname in sorted(os.listdir(export_dir)):
+                    m = fwd_re.match(fname)
+                    if not m:
+                        continue
+                    fwd = os.path.abspath(os.path.join(export_dir, fname))
+                    rev = os.path.abspath(os.path.join(export_dir, fname.replace('_R1','_R2',1)))
+                    if not os.path.exists(rev):
+                        continue
+                    sid = m.group(1)
+                    if os.path.getsize(fwd) < EMPTY_MAX or os.path.getsize(rev) < EMPTY_MAX:
+                        removed.append(sid)
+                    else:
+                        lines.append(f"{sid}\t{fwd}\t{rev}")
+                manifest = os.path.join(export_dir, "manifest.tsv")
+                with open(manifest, 'w') as f:
+                    f.write('\n'.join(lines) + '\n')
+                with open(str(output.report), 'w') as f:
+                    f.write(f"Removed {len(removed)} empty samples:\n" + '\n'.join(removed) + '\n')
+                print(f"Removed {len(removed)} empty samples. Keeping {len(lines)-1}.")
+                subprocess.run(["qiime", "tools", "import",
+                                "--type",         "SampleData[PairedEndSequencesWithQuality]",
+                                "--input-path",   manifest,
+                                "--output-path",  str(output.demux_clean),
+                                "--input-format", "PairedEndFastqManifestPhred33V2"],
+                               check=True)
+            finally:
+                shutil.rmtree(export_dir)
+
+
 rule dada2_denoise:
     """Denoise, merge, and chimera-filter with DADA2."""
     input:
-        filtered = config["directory_name"]["artifact"] + "/filtered_demux.qza"
+        filtered = config["directory_name"]["artifact"] + "/filtered_demux_clean.qza"
     output:
         freq_tbl         = config["directory_name"]["artifact"] + "/" + config["tables"]["freq_tbl"],
         seqs_rep         = config["directory_name"]["artifact"] + "/" + config["tables"]["seqs_rep"],
@@ -38,10 +106,12 @@ rule dada2_denoise:
         trim_r    = config["denoise"]["trim_r"],
         trunc_f   = config["denoise"]["trunc_f"],
         trunc_r   = config["denoise"]["trunc_r"],
+        max_ee_f  = config["denoise"]["max_ee_f"],
+        max_ee_r  = config["denoise"]["max_ee_r"],
         chimera   = config["denoise"]["chimera_method"],
         tucker    = config["denoise"]["chimeric_parent_over_abundance"],
         overlap   = config["denoise"]["min_overlap"],
-        threads   = config["raw"]["threads"]
+        threads   = config["denoise"]["dada2_threads"]
     shell:
         """
         qiime dada2 denoise-paired \
@@ -53,7 +123,11 @@ rule dada2_denoise:
             --p-chimera-method {params.chimera} \
             --p-min-fold-parent-over-abundance {params.tucker} \
             --p-min-overlap {params.overlap} \
+            --p-max-ee-f {params.max_ee_f} \
+            --p-max-ee-r {params.max_ee_r} \
             --p-n-threads {params.threads} \
+            --p-no-retain-all-samples \
+            --verbose \
             --o-table {output.freq_tbl} \
             --o-representative-sequences {output.seqs_rep} \
             --o-denoising-stats {output.stats_qza} \

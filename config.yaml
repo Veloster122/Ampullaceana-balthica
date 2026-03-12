@@ -17,7 +17,8 @@ directory_name:
   visualizations: "visualizations_Ampullaceana"
   phylogeny: "phylogeny_Ampullaceana"
   viz_dir_div: "diversity_results_viz_Ampullaceana"
-  demux_export: "demux_export_Ampullaceana"  # for per-sample-fastq-counts.tsv
+  demux_export: "demux_export_Ampullaceana"    # pre-cutadapt per-sample counts
+  trimmed_export: "trimmed_export_Ampullaceana"  # post-cutadapt per-sample counts
 
 illumina:
   paired_end_tag_1: "_R1"
@@ -32,8 +33,12 @@ denoise:
   chimera_method: "consensus"   # options: consensus, none, pooled
   chimeric_parent_over_abundance: 8
   min_overlap: 12
-  trim_f: 2   # 5' trim forward (positions to cut from left)
-  trim_r: 2   # 5' trim reverse
+  trim_f: 0   # primers removed by cutadapt — no additional 5' trimming needed
+  trim_r: 0   # primers removed by cutadapt — no additional 5' trimming needed
+  max_ee_f: 2.0  # max expected errors forward
+  max_ee_r: 2.0  # max expected errors reverse
+  dada2_threads: 8  # DADA2-specific thread count — lower than fastp/QIIME2 to prevent OOM kills
+                    # filterAndTrim spawns N parallel R subprocesses; 20 threads = OOM crash
   # !! CHECKPOINT 1: Set trunc_f / trunc_r AFTER viewing demux.qzv !!
   trunc_f: 0  # <-- UPDATE after checking demux visualization
   trunc_r: 0  # <-- UPDATE after checking demux visualization

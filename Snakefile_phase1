@@ -39,6 +39,7 @@ print(f"[Phase 1] Found {len(SAMPLES)} samples: {SAMPLES[:3]}{'...' if len(SAMPL
 # ── Include modular rule files ───────────────────────────────────────────────
 include: "rules/fastp_import.smk"
 include: "rules/qc_reports.smk"
+include: "rules/cutadapt.smk"
 include: "rules/feature_table.smk"
 include: "rules/taxonomy.smk"
 
