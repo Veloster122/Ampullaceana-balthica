@@ -18,6 +18,9 @@ rule fastp_qc:
         fastp \
             -i {input.r1} -I {input.r2} \
             -w {threads} \
+            --trim_poly_g \
+            --adapter_sequence AGATCGGAAGAG \
+            --adapter_sequence_r2 AGATCGGAAGAG \
             -h {output.html} -j {output.json} \
             -o {output.r1} -O {output.r2}
         """

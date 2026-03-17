@@ -1,0 +1,5 @@
+# Conda requirements (run using conda install -c bioconda ...)
+snakemake
+fastp
+fastqc
+multiqc

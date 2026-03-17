@@ -1,0 +1,12 @@
+name: ampullaceana-pipeline
+channels:
+  - qiime2/label/r2026.1
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - qiime2-amplicon=2026.1
+  - snakemake
+  - fastp
+  - fastqc
+  - multiqc
