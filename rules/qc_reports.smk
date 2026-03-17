@@ -24,11 +24,11 @@ rule qc_reports:
         fastqc {config[raw][data_directory]}/*.fastq.gz \
             -t {threads} \
             -o qc_reports/raw/
-        multiqc qc_reports/raw/ -o qc_reports/raw/
+        multiqc --force qc_reports/raw/ -o qc_reports/raw/
 
         # After QC
         fastqc {config[directory_name][quality]}/*.fastq.gz \
             -t {threads} \
             -o qc_reports/filtered/
-        multiqc qc_reports/filtered/ -o qc_reports/filtered/
+        multiqc --force qc_reports/filtered/ -o qc_reports/filtered/
         """
