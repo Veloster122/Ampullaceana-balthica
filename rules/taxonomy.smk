@@ -113,6 +113,8 @@ rule classify_taxonomy:
         taxo_seqs_viz = config["directory_name"]["visualizations"] + "/" + config["tables"]["taxa_seqs_viz"]
     shell:
         """
+        unset R_HOME R_LIBS_USER R_LIBS_SITE LD_LIBRARY_PATH
+
         # Classify ASVs
         qiime feature-classifier classify-sklearn \
             --i-classifier {input.classifier} \
@@ -138,11 +140,13 @@ rule classify_taxonomy:
             --i-table {output.taxo_tbl} \
             --o-filtered-data {output.taxo_seqs}
 
-        # Summarize filtered tables
+        # Summarize filtered tables (2026.1 pipeline API)
         qiime feature-table summarize \
             --i-table {output.taxo_tbl} \
-            --m-sample-metadata-file {input.metadata} \
-            --o-visualization {output.taxo_tbl_viz}
+            --m-metadata {input.metadata} \
+            --o-summary {output.taxo_tbl_viz} \
+            --o-feature-frequencies {output.taxo_tbl}.feat_freq.qza \
+            --o-sample-frequencies {output.taxo_tbl}.samp_freq.qza
 
         qiime feature-table tabulate-seqs \
             --i-data {output.taxo_seqs} \

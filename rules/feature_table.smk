@@ -140,20 +140,30 @@ rule dada2_denoise:
 
 
 rule summarize_feature_table:
-    """Summarize frequency table and representative sequences for visualization."""
+    """Summarize frequency table and representative sequences for visualization.
+    NOTE: In QIIME 2 2026.1, 'feature-table summarize' became a pipeline.
+    The old --o-visualization is now --o-summary (visualisation output).
+    We also unset R_HOME to prevent rpy2 from loading the system R library.
+    """
     input:
         freq_tbl  = config["directory_name"]["artifact"] + "/" + config["tables"]["freq_tbl"],
         seqs_rep  = config["directory_name"]["artifact"] + "/" + config["tables"]["seqs_rep"],
         metadata  = config["raw"]["metadata"]
     output:
         freq_viz  = config["directory_name"]["visualizations"] + "/" + config["tables"]["freq_tbl_viz"],
-        seqs_viz  = config["directory_name"]["visualizations"] + "/" + config["tables"]["seqs_rep_viz"]
+        seqs_viz  = config["directory_name"]["visualizations"] + "/" + config["tables"]["seqs_rep_viz"],
+        feat_freq = config["directory_name"]["artifact"] + "/feature_frequencies.qza",
+        samp_freq = config["directory_name"]["artifact"] + "/sample_frequencies.qza"
     shell:
         """
+        unset R_HOME R_LIBS_USER R_LIBS_SITE LD_LIBRARY_PATH
+
         qiime feature-table summarize \
             --i-table {input.freq_tbl} \
-            --m-sample-metadata-file {input.metadata} \
-            --o-visualization {output.freq_viz}
+            --m-metadata {input.metadata} \
+            --o-summary {output.freq_viz} \
+            --o-feature-frequencies {output.feat_freq} \
+            --o-sample-frequencies {output.samp_freq}
 
         qiime feature-table tabulate-seqs \
             --i-data {input.seqs_rep} \
