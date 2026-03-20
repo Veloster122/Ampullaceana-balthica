@@ -148,10 +148,13 @@ qiime metadata tabulate \
 
 ### 9. Summarize feature table
 ```bash
+# In QIIME2 2026.1, summarize is now a pipeline with 3 outputs:
 qiime feature-table summarize \
   --i-table artifact_Ampullaceana/Ampullaceana_freq_table.qza \
-  --m-sample-metadata-file 00-Ampullaceana_balthica_raw_data/Ampullaceana_balthica_metadata.tsv \
-  --o-visualization visualizations_Ampullaceana/Ampullaceana_freq_table.qzv
+  --m-metadata-file 00-Ampullaceana_balthica_raw_data/Ampullaceana_balthica_metadata.tsv \
+  --o-summary visualizations_Ampullaceana/Ampullaceana_freq_table.qzv \
+  --o-sample-frequencies visualizations_Ampullaceana/sample_frequencies.qza \
+  --o-feature-frequencies visualizations_Ampullaceana/feature_frequencies.qza
 
 qiime feature-table tabulate-seqs \
   --i-data artifact_Ampullaceana/Ampullaceana_rep_seqs.qza \
