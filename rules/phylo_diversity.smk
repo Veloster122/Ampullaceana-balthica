@@ -48,6 +48,8 @@ rule diversity_analysis:
     output:
         # Core metrics directory sentinel
         core_flag    = "diversity_core_metrics/.done",
+        shannon      = "diversity_core_metrics/shannon_vector.qza",
+        observed     = "diversity_core_metrics/observed_features_vector.qza",
         # Alpha significance
         faithpd_stat = config["directory_name"]["viz_dir_div"] + "/faiths_pd_statistics.qzv",
         evenness_stat= config["directory_name"]["viz_dir_div"] + "/evenness_statistics.qzv",
