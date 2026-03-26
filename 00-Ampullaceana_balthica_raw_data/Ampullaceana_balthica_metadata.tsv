@@ -1,5 +1,5 @@
 ID	Box	Pop	Temp	Diet	Phosphorus	GUT	Days_spent	N_clutches	N_clutches_per day	Av_stick_height	Ctmax_time	Ctmax_temp	Cons_animal	Cons_plant	Animal_per_day	Plant_per_day	Ratio_A:P	Total_cons	Cons_rate	Ini_weight	Fin_weight	Growth_rate	Shell_IL	Shell_IAA	Shell_FL	Shell_FAA
-#q2:types	categorical	categorical	categorical	categorical	categorical	categorical	categorical	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	categorical	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric
+#q2:types	categorical	categorical	categorical	categorical	categorical	categorical	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	categorical	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric
 001	1	SE	20	A	0	x	74	0	0	0.633333333333333	196	37.3	579.597575757576	0	7.83239967239968	0		579.597575757576	7.94	171.86	279.66	1.45675675675676	9.40833333333333	31.2206666666667	14.3666666666667	85.8903333333333
 002	1	SE	20	A	0	x	74	0	0	1.08333333333333	193	36.1	1430.68575757576	0	19.3335913185913	0		1430.68575757576	19.6	200.91	1028.85	11.1883783783784	11.49	39.1166666666667	25.9113333333333	220.772
 007	1	SE	20	P	0	x	74	0	0	0.983333333333333	217	38.4	0	949.244848484848	0	12.8276330876331		949.244848484848	13	195.4	491.46	4.00081081081081	11.0626666666667	36.6536666666667	19.4596666666667	127.513
