@@ -2,29 +2,34 @@
 # Rule 7: Shannon extraction + GLMM statistical analysis in R
 
 rule shannon_extract:
-    """Extract Shannon and Observed Features metrics from alpha rarefaction output.
-    Requires the alpha rarefaction .qza to be unzipped first."""
+    """Extract Shannon, Observed Features, and Faith's PD metrics from alpha diversity output."""
     input:
         rarefact_dir = "diversity_core_metrics/shannon_vector.qza"
     output:
-        shannon_meta = "glmm_inputs/shannon_metadata.tsv",
-        observed_meta = "glmm_inputs/observed_features_metadata.tsv"
+        shannon_meta  = "glmm_inputs/shannon_metadata.tsv",
+        observed_meta = "glmm_inputs/observed_features_metadata.tsv",
+        faithpd_meta  = "glmm_inputs/faith_pd_metadata.tsv"
     shell:
         """
         mkdir -p glmm_inputs
-        # Unzip the shannon vector artifact
+
+        # Unzip shannon vector artifact
         mkdir -p tmp_shannon
         unzip -o {input.rarefact_dir} -d tmp_shannon/
-
-        # Extract the data CSV from the QIIME2 artifact
         find tmp_shannon/ -name "*.tsv" | head -1 | xargs -I{{}} cp {{}} {output.shannon_meta}
+        rm -rf tmp_shannon
 
-        # Same for observed features
+        # Unzip observed features vector artifact
         mkdir -p tmp_observed
         unzip -o diversity_core_metrics/observed_features_vector.qza -d tmp_observed/
         find tmp_observed/ -name "*.tsv" | head -1 | xargs -I{{}} cp {{}} {output.observed_meta}
+        rm -rf tmp_observed
 
-        rm -rf tmp_shannon tmp_observed
+        # Unzip Faith's PD vector artifact
+        mkdir -p tmp_faithpd
+        unzip -o diversity_core_metrics/faith_pd_vector.qza -d tmp_faithpd/
+        find tmp_faithpd/ -name "*.tsv" | head -1 | xargs -I{{}} cp {{}} {output.faithpd_meta}
+        rm -rf tmp_faithpd
         """
 
 
@@ -34,6 +39,7 @@ rule glmm_analysis:
     input:
         shannon_meta  = "glmm_inputs/shannon_metadata.tsv",
         observed_meta = "glmm_inputs/observed_features_metadata.tsv",
+        faithpd_meta  = "glmm_inputs/faith_pd_metadata.tsv",
         metadata      = config["raw"]["metadata"],
         glmm_script   = "scripts/GLMMs_automatized.R"
     output:
@@ -43,11 +49,12 @@ rule glmm_analysis:
     shell:
         """
         mkdir -p glmm_outputs
-        Rscript {input.glmm_script} \
-            {input.shannon_meta} \
-            {input.observed_meta} \
-            {input.metadata} \
-            {output.shannon_plot} \
-            {output.observed_plot} \
+        Rscript {input.glmm_script} \\
+            {input.shannon_meta} \\
+            {input.observed_meta} \\
+            {input.faithpd_meta} \\
+            {input.metadata} \\
+            {output.shannon_plot} \\
+            {output.observed_plot} \\
             {output.pvalues_tsv}
         """

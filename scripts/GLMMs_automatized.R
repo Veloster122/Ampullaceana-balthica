@@ -13,16 +13,17 @@ suppressPackageStartupMessages({
 
 # Get arguments
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 6) {
-  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <metadata> <shannon_plot> <observed_plot> <pvalues_tsv>")
+if (length(args) < 7) {
+  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <pvalues_tsv>")
 }
 
 shannon_file  <- args[1]
 observed_file <- args[2]
-metadata_file <- args[3]
-shannon_plot  <- args[4]
-observed_plot <- args[5]
-pvalues_file  <- args[6]
+faithpd_file  <- args[3]
+metadata_file <- args[4]
+shannon_plot  <- args[5]
+observed_plot <- args[6]
+pvalues_file  <- args[7]
 
 # 1. Load data
 metadata <- read.table(metadata_file, sep="\t", header=TRUE, check.names=FALSE)
@@ -33,20 +34,24 @@ if (metadata[1,1] == "#q2:types") {
 
 shannon_data  <- read.table(shannon_file, sep="\t", header=TRUE, check.names=FALSE)
 observed_data <- read.table(observed_file, sep="\t", header=TRUE, check.names=FALSE)
+faithpd_data  <- read.table(faithpd_file,  sep="\t", header=TRUE, check.names=FALSE)
 
 # 2. Merge data
 # Use the first column (Sample ID) for merging
 colnames(shannon_data)[1]  <- "SampleID"
 colnames(observed_data)[1] <- "SampleID"
+colnames(faithpd_data)[1]  <- "SampleID"
 colnames(metadata)[1]      <- "SampleID"
 
-# Clean up shannon data (sometimes zip extraction keeps extra headers)
-shannon_data <- shannon_data %>% select(SampleID, shannon_entropy)
+# Clean up data
+shannon_data  <- shannon_data  %>% select(SampleID, shannon_entropy)
 observed_data <- observed_data %>% select(SampleID, observed_features)
+faithpd_data  <- faithpd_data  %>% select(SampleID, faith_pd)
 
 df <- metadata %>%
   inner_join(shannon_data, by="SampleID") %>%
-  inner_join(observed_data, by="SampleID")
+  inner_join(observed_data, by="SampleID") %>%
+  inner_join(faithpd_data, by="SampleID")
 
 # Convert factors
 df$Temp <- as.factor(df$Temp)
@@ -74,9 +79,10 @@ run_glmm <- function(metric_name, data) {
 # Run models
 shannon_res  <- run_glmm("shannon_entropy", df)
 observed_res <- run_glmm("observed_features", df)
+faithpd_res  <- run_glmm("faith_pd", df)
 
 # 4. Save P-values
-pvalues <- rbind(shannon_res$coefs, observed_res$coefs)
+pvalues <- rbind(shannon_res$coefs, observed_res$coefs, faithpd_res$coefs)
 write.table(pvalues, pvalues_file, sep="\t", row.names=FALSE, quote=FALSE)
 
 # 5. Plotting
@@ -92,7 +98,7 @@ plot_metric <- function(metric_name, title, output_file) {
   ggsave(output_file, p, width=8, height=6)
 }
 
-plot_metric("shannon_entropy", "Shannon Diversity by Temp, Diet, and Population", shannon_plot)
+plot_metric("shannon_entropy",   "Shannon Diversity by Temp, Diet, and Population",  shannon_plot)
 plot_metric("observed_features", "Observed Features by Temp, Diet, and Population", observed_plot)
 
 message("GLMM analysis complete. Results saved to glmm_outputs/")
