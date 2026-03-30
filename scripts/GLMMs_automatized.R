@@ -81,7 +81,18 @@ shannon_res  <- run_glmm("shannon_entropy", df)
 observed_res <- run_glmm("observed_features", df)
 faithpd_res  <- run_glmm("faith_pd", df)
 
-# 4. Save P-values
+# 4. FDR correction (Benjamini-Hochberg), applied per metric separately
+adjust_fdr <- function(coefs) {
+  p_col <- grep("Pr", colnames(coefs), value = TRUE)[1]
+  coefs$p_fdr <- p.adjust(coefs[[p_col]], method = "fdr")
+  return(coefs)
+}
+
+shannon_res$coefs  <- adjust_fdr(shannon_res$coefs)
+observed_res$coefs <- adjust_fdr(observed_res$coefs)
+faithpd_res$coefs  <- adjust_fdr(faithpd_res$coefs)
+
+# 5. Save P-values
 pvalues <- rbind(shannon_res$coefs, observed_res$coefs, faithpd_res$coefs)
 write.table(pvalues, pvalues_file, sep="\t", row.names=FALSE, quote=FALSE)
 
