@@ -13,8 +13,8 @@ suppressPackageStartupMessages({
 
 # Get arguments
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 7) {
-  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <pvalues_tsv>")
+if (length(args) < 8) {
+  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <pvalues_tsv> <anova_tsv>")
 }
 
 shannon_file  <- args[1]
@@ -24,6 +24,7 @@ metadata_file <- args[4]
 shannon_plot  <- args[5]
 observed_plot <- args[6]
 pvalues_file  <- args[7]
+anova_file    <- args[8]
 
 # 1. Load data
 metadata <- read.table(metadata_file, sep="\t", header=TRUE, check.names=FALSE)
@@ -92,9 +93,35 @@ shannon_res$coefs  <- adjust_fdr(shannon_res$coefs)
 observed_res$coefs <- adjust_fdr(observed_res$coefs)
 faithpd_res$coefs  <- adjust_fdr(faithpd_res$coefs)
 
-# 5. Save P-values
+# 5. Save pairwise contrasts (summary)
 pvalues <- rbind(shannon_res$coefs, observed_res$coefs, faithpd_res$coefs)
 write.table(pvalues, pvalues_file, sep="\t", row.names=FALSE, quote=FALSE)
+
+# 6. Type III ANOVA — overall F-test per factor
+get_anova <- function(res_obj, metric_name) {
+  aov_tbl <- as.data.frame(anova(res_obj$model, type = 3))
+  aov_tbl$Variable <- rownames(aov_tbl)
+  aov_tbl$Metric   <- metric_name
+  return(aov_tbl)
+}
+
+shannon_aov  <- get_anova(shannon_res,  "shannon_entropy")
+observed_aov <- get_anova(observed_res, "observed_features")
+faithpd_aov  <- get_anova(faithpd_res,  "faith_pd")
+
+# FDR on ANOVA p-values per metric
+adjust_anova_fdr <- function(aov_tbl) {
+  p_col <- grep("Pr", colnames(aov_tbl), value = TRUE)[1]
+  aov_tbl$p_fdr <- p.adjust(aov_tbl[[p_col]], method = "fdr")
+  return(aov_tbl)
+}
+
+shannon_aov  <- adjust_anova_fdr(shannon_aov)
+observed_aov <- adjust_anova_fdr(observed_aov)
+faithpd_aov  <- adjust_anova_fdr(faithpd_aov)
+
+anova_all <- rbind(shannon_aov, observed_aov, faithpd_aov)
+write.table(anova_all, anova_file, sep="\t", row.names=FALSE, quote=FALSE)
 
 # 5. Plotting
 plot_metric <- function(metric_name, title, output_file) {
