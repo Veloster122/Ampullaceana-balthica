@@ -45,6 +45,7 @@ rule glmm_analysis:
     output:
         shannon_plot  = "glmm_outputs/shannon_glmm_results.pdf",
         observed_plot = "glmm_outputs/observed_features_glmm_results.pdf",
+        faithpd_plot  = "glmm_outputs/faith_pd_glmm_results.pdf",
         pvalues_tsv   = "glmm_outputs/glmm_pvalues.tsv",
         anova_tsv     = "glmm_outputs/glmm_anova.tsv"
     shell:
@@ -57,6 +58,7 @@ rule glmm_analysis:
             {input.metadata} \\
             {output.shannon_plot} \\
             {output.observed_plot} \\
+            {output.faithpd_plot} \\
             {output.pvalues_tsv} \\
             {output.anova_tsv}
         """

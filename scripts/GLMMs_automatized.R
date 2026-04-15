@@ -13,8 +13,8 @@ suppressPackageStartupMessages({
 
 # Get arguments
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 8) {
-  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <pvalues_tsv> <anova_tsv>")
+if (length(args) < 9) {
+  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <faithpd_plot> <pvalues_tsv> <anova_tsv>")
 }
 
 shannon_file  <- args[1]
@@ -23,8 +23,9 @@ faithpd_file  <- args[3]
 metadata_file <- args[4]
 shannon_plot  <- args[5]
 observed_plot <- args[6]
-pvalues_file  <- args[7]
-anova_file    <- args[8]
+faithpd_plot  <- args[7]
+pvalues_file  <- args[8]
+anova_file    <- args[9]
 
 # 1. Load data
 metadata <- read.table(metadata_file, sep="\t", header=TRUE, check.names=FALSE)
@@ -138,5 +139,6 @@ plot_metric <- function(metric_name, title, output_file) {
 
 plot_metric("shannon_entropy",   "Shannon Diversity by Temp, Diet, and Population",  shannon_plot)
 plot_metric("observed_features", "Observed Features by Temp, Diet, and Population", observed_plot)
+plot_metric("faith_pd",          "Faith's Phylogenetic Diversity by Temp, Diet, and Pop", faithpd_plot)
 
 message("GLMM analysis complete. Results saved to glmm_outputs/")
