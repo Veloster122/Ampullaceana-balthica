@@ -13,8 +13,8 @@ def main():
     headers = lines[0].strip().split('\t')
     types = lines[1].strip().split('\t')
     
-    # Load into dataframe skipping the type row
-    df = pd.read_csv(input_file, sep='\t', skiprows=[1])
+    # Load into dataframe skipping the type row, forcing 'ID' to be read as string
+    df = pd.read_csv(input_file, sep='\t', skiprows=[1], dtype={'ID': str})
     
     new_columns = {}
     new_types = []
