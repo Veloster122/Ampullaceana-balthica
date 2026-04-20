@@ -195,11 +195,11 @@ rule diversity_analysis:
             --i-data {params.artifact}/ancombc2_combined.qza \
             --o-visualization {output.da_combined}
 
-        # Pop * Temp effect
+        # Pop + Temp effect (Additive model due to QIIME2 formula parsing limitations)
         qiime composition ancombc2 \
             --i-table {params.artifact}/table_abund_collapsed.qza \
             --m-metadata-file {input.metadata} \
-            --p-fixed-effects-formula 'Pop * Temp' \
+            --p-fixed-effects-formula 'Pop + Temp' \
             --o-ancombc2-output {params.artifact}/ancombc2_pop_temp.qza
         qiime composition ancombc2-visualizer \
             --i-data {params.artifact}/ancombc2_pop_temp.qza \
