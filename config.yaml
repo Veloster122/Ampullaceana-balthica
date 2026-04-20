@@ -6,7 +6,7 @@
 
 raw:
   data_directory: "00-Ampullaceana_balthica_raw_data/fastqs"  # relative to project root — works on any machine
-  metadata: "00-Ampullaceana_balthica_raw_data/Ampullaceana_balthica_metadata_binned.tsv"
+  metadata: "00-Ampullaceana_balthica_raw_data/Ampullaceana_balthica_metadata.tsv"
   manifest: "manifest.tsv"  # already exists - will be skipped if present
   threads: 20
 
