@@ -64,7 +64,8 @@ rule diversity_analysis:
         da_temp_ref  = config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_reference_20.qzv",
         da_diet      = config["directory_name"]["viz_dir_div"] + "/da_barplot_diet.qzv",
         da_p         = config["directory_name"]["viz_dir_div"] + "/da_barplot_phosphorus.qzv",
-        da_combined  = config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv"
+        da_combined  = config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv",
+        da_pop_temp  = config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_temp.qzv"
     params:
         raref_depth = config["diversity"]["raref_depth"],
         artifact    = config["directory_name"]["artifact"],
@@ -193,4 +194,14 @@ rule diversity_analysis:
         qiime composition ancombc2-visualizer \
             --i-data {params.artifact}/ancombc2_combined.qza \
             --o-visualization {output.da_combined}
+
+        # Pop * Temp effect
+        qiime composition ancombc2 \
+            --i-table {params.artifact}/table_abund_collapsed.qza \
+            --m-metadata-file {input.metadata} \
+            --p-fixed-effects-formula 'Pop * Temp' \
+            --o-ancombc2-output {params.artifact}/ancombc2_pop_temp.qza
+        qiime composition ancombc2-visualizer \
+            --i-data {params.artifact}/ancombc2_pop_temp.qza \
+            --o-visualization {output.da_pop_temp}
         """

@@ -68,6 +68,7 @@ rule all_phase2:
         config["directory_name"]["viz_dir_div"] + "/da_barplot_diet.qzv",
         config["directory_name"]["viz_dir_div"] + "/da_barplot_phosphorus.qzv",
         config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_temp.qzv",
         # GLMMs
         "glmm_outputs/shannon_glmm_results.pdf",
         "glmm_outputs/observed_features_glmm_results.pdf",
