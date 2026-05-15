@@ -70,6 +70,8 @@ rule all_phase2:
         config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv",
         config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_temp.qzv",
         # GLMMs
-        "glmm_outputs/shannon_glmm_results.pdf",
-        "glmm_outputs/observed_features_glmm_results.pdf",
-        "glmm_outputs/glmm_pvalues.tsv"
+        "glmm_outputs/shannon_entropy_summary_results.txt",
+        "glmm_outputs/observed_features_summary_results.txt",
+        "glmm_outputs/faith_pd_summary_results.txt",
+        "glmm_outputs/shannon_entropy_DHARMa_residuals.png",
+        "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png"

@@ -43,11 +43,11 @@ rule glmm_analysis:
         metadata      = config["raw"]["metadata"],
         glmm_script   = "scripts/GLMMs_automatized.R"
     output:
-        shannon_plot  = "glmm_outputs/shannon_glmm_results.pdf",
-        observed_plot = "glmm_outputs/observed_features_glmm_results.pdf",
-        faithpd_plot  = "glmm_outputs/faith_pd_glmm_results.pdf",
-        pvalues_tsv   = "glmm_outputs/glmm_pvalues.tsv",
-        anova_tsv     = "glmm_outputs/glmm_anova.tsv"
+        shannon_summary  = "glmm_outputs/shannon_entropy_summary_results.txt",
+        observed_summary = "glmm_outputs/observed_features_summary_results.txt",
+        faithpd_summary  = "glmm_outputs/faith_pd_summary_results.txt",
+        shannon_dharma   = "glmm_outputs/shannon_entropy_DHARMa_residuals.png",
+        shannon_plot     = "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png"
     shell:
         """
         mkdir -p glmm_outputs
@@ -56,9 +56,5 @@ rule glmm_analysis:
             {input.observed_meta} \\
             {input.faithpd_meta} \\
             {input.metadata} \\
-            {output.shannon_plot} \\
-            {output.observed_plot} \\
-            {output.faithpd_plot} \\
-            {output.pvalues_tsv} \\
-            {output.anova_tsv}
+            glmm_outputs
         """

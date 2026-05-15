@@ -1,144 +1,216 @@
 #!/usr/bin/env Rscript
-# scripts/GLMMs_automatized.R
-# Generalized Linear Mixed Models for Ampullaceana balthica 16S diversity
+# ============================================================
+# Advanced Microbiome GLMMs Analysis
+# Adapted from Sara & Julia (ce3c) standard script
+# ============================================================
 
-# Load libraries
-suppressPackageStartupMessages({
-  library(lme4)
-  library(lmerTest)
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-})
+# ---- Auto-Install and Load Libraries ----
+packages <- c("glmmTMB", "lmodel2", "car", "effects", "emmeans", 
+              "DHARMa", "ggeffects", "ggplot2", "patchwork", "interactions", 
+              "grid", "readr", "plyr", "jtools", "sjPlot", "dplyr", "rlang")
 
-# Get arguments
+for (p in packages) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    install.packages(p, repos = "http://cran.us.r-project.org")
+  }
+  library(p, character.only = TRUE)
+}
+
+# ---- Arguments ----
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 9) {
-  stop("Usage: Rscript GLMMs_automatized.R <shannon_meta> <observed_meta> <faithpd_meta> <metadata> <shannon_plot> <observed_plot> <faithpd_plot> <pvalues_tsv> <anova_tsv>")
+if (length(args) < 5) {
+  stop("Usage: Rscript GLMMs_automatized.R <shannon_data> <observed_data> <faithpd_data> <metadata> <out_dir>")
 }
 
 shannon_file  <- args[1]
 observed_file <- args[2]
 faithpd_file  <- args[3]
 metadata_file <- args[4]
-shannon_plot  <- args[5]
-observed_plot <- args[6]
-faithpd_plot  <- args[7]
-pvalues_file  <- args[8]
-anova_file    <- args[9]
+out_dir       <- args[5]
 
-# 1. Load data
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+# ---- Load Data ----
 metadata <- read.table(metadata_file, sep="\t", header=TRUE, check.names=FALSE)
-# Remove QIIME2 header row if present (#q2:types)
-if (metadata[1,1] == "#q2:types") {
-  metadata <- metadata[-1,]
-}
+if (metadata[1,1] == "#q2:types") metadata <- metadata[-1,]
 
 shannon_data  <- read.table(shannon_file, sep="\t", header=TRUE, check.names=FALSE)
 observed_data <- read.table(observed_file, sep="\t", header=TRUE, check.names=FALSE)
 faithpd_data  <- read.table(faithpd_file,  sep="\t", header=TRUE, check.names=FALSE)
 
-# 2. Merge data
-# Use the first column (Sample ID) for merging
 colnames(shannon_data)[1]  <- "SampleID"
 colnames(observed_data)[1] <- "SampleID"
 colnames(faithpd_data)[1]  <- "SampleID"
 colnames(metadata)[1]      <- "SampleID"
 
-# Clean up data
-shannon_data  <- shannon_data  %>% select(SampleID, shannon_entropy)
-observed_data <- observed_data %>% select(SampleID, observed_features)
-faithpd_data  <- faithpd_data  %>% select(SampleID, faith_pd)
-
+# Merge
 df <- metadata %>%
-  inner_join(shannon_data, by="SampleID") %>%
-  inner_join(observed_data, by="SampleID") %>%
-  inner_join(faithpd_data, by="SampleID")
+  inner_join(shannon_data %>% select(SampleID, shannon_entropy), by="SampleID") %>%
+  inner_join(observed_data %>% select(SampleID, observed_features), by="SampleID") %>%
+  inner_join(faithpd_data %>% select(SampleID, faith_pd), by="SampleID")
 
-# Convert factors
-df$Temp <- as.factor(df$Temp)
-df$Diet <- as.factor(df$Diet)
-df$Pop  <- as.factor(df$Pop)
-df$Box  <- as.factor(df$Box)
-df$Phosphorus <- as.numeric(as.character(df$Phosphorus))
+# ---- Factor and Numeric Conversions ----
+df <- df %>%
+  mutate(
+    Temp = as.factor(Temp),
+    Diet = as.factor(Diet),
+    Phosphorus = as.factor(Phosphorus),
+    Pop = as.factor(Pop),
+    Box = as.factor(Box)
+  )
 
-# 3. Model Function
-run_glmm <- function(metric_name, data) {
-  # Formula based on Ampullaceana balthica study design
-  # metric ~ Temp * Diet + Phosphorus + Pop + (1|Box)
-  formula_str <- paste(metric_name, "~ Temp * Diet + Phosphorus + Pop + (1|Box)")
-  model <- lmer(as.formula(formula_str), data = data)
+# ---- Helper Functions ----
+
+main_effects1 <- function(model, a, metric_name, log_file) {
+  fml <- reformulate(a)
+  effects.a <- emmeans(model, fml)
   
-  # Get p-values
-  summary_model <- summary(model)
-  coefs <- as.data.frame(summary_model$coefficients)
-  coefs$Variable <- rownames(coefs)
-  coefs$Metric <- metric_name
+  cat("\n--- Main Effect:", a, "---\n", file=log_file, append=TRUE)
+  sink(log_file, append=TRUE)
+  print(effects.a)
+  cat("------------------------------------\n")
+  print(test(pairs(effects.a), joint = TRUE))
+  cat("------------------------------------\n")
+  print(pairs(effects.a, adjust='bonferroni'))
+  sink()
+}
+
+main_effects2 <- function(model, a, b, metric_name, log_file) {
+  fml <- as.formula(paste("~", a, "|", b))
+  effects.a.b <- emmeans(model, fml)
   
-  return(list(model=model, coefs=coefs))
+  cat("\n--- Effect of", a, "at each level of", b, "---\n", file=log_file, append=TRUE)
+  sink(log_file, append=TRUE)
+  print(effects.a.b)
+  cat("------------------------------------\n")
+  print(test(pairs(effects.a.b), joint =TRUE))
+  cat("------------------------------------\n")
+  print(pairs(effects.a.b, adjust='bonferroni'))
+  sink()
 }
 
-# Run models
-shannon_res  <- run_glmm("shannon_entropy", df)
-observed_res <- run_glmm("observed_features", df)
-faithpd_res  <- run_glmm("faith_pd", df)
-
-# 4. FDR correction (Benjamini-Hochberg), applied per metric separately
-adjust_fdr <- function(coefs) {
-  p_col <- grep("Pr", colnames(coefs), value = TRUE)[1]
-  coefs$p_fdr <- p.adjust(coefs[[p_col]], method = "fdr")
-  return(coefs)
+create_cat_plot <- function(model, pred_var, modx_var, mod2_var, ylab, metric_name, data, png_path) {
+  p <- interactions::cat_plot(
+    model = model,
+    data = data,
+    pred = !!sym(pred_var),
+    modx = !!sym(modx_var),
+    mod2 = !!sym(mod2_var),
+    geom = "line",
+    size = 1,
+    error.width = 1,
+    dodge.width = 0.5,
+    panel = TRUE
+  ) +
+    ylab(ylab) +
+    xlab(pred_var) +
+    scale_color_manual(name = modx_var, values = c("#740000", "#DAA520", "#4F734E", "#112233", "#445566")) +
+    theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black"),
+      strip.background = element_blank(),
+      strip.text = element_text(face = "italic", size = 12)
+    ) +
+    facet_wrap(as.formula(paste("~", mod2_var)), labeller = ggplot2::label_both)
+  
+  ggsave(filename = png_path, plot = p, width = 10, height = 7, dpi=300)
 }
 
-shannon_res$coefs  <- adjust_fdr(shannon_res$coefs)
-observed_res$coefs <- adjust_fdr(observed_res$coefs)
-faithpd_res$coefs  <- adjust_fdr(faithpd_res$coefs)
+# ---- Core Runner ----
 
-# 5. Save pairwise contrasts (summary)
-pvalues <- rbind(shannon_res$coefs, observed_res$coefs, faithpd_res$coefs)
-write.table(pvalues, pvalues_file, sep="\t", row.names=FALSE, quote=FALSE)
-
-# 6. Type III ANOVA — overall F-test per factor
-get_anova <- function(res_obj, metric_name) {
-  aov_tbl <- as.data.frame(anova(res_obj$model, type = 3))
-  aov_tbl$Variable <- rownames(aov_tbl)
-  aov_tbl$Metric   <- metric_name
-  return(aov_tbl)
+run_analysis <- function(metric_col, ylab_name) {
+  print(paste("Running GLMM for", metric_col))
+  
+  # Remove NAs
+  sub_df <- df[!is.na(df[[metric_col]]), ]
+  
+  # Ensure target is numeric
+  sub_df[[metric_col]] <- as.numeric(sub_df[[metric_col]])
+  
+  # Log file
+  log_file <- file.path(out_dir, paste0(metric_col, "_summary_results.txt"))
+  cat("GLMM Analysis for:", metric_col, "\n", file=log_file)
+  
+  # 1. Build Model: Pop * Temp * Diet + Phosphorus + (1|Box)
+  formula_str <- paste0(metric_col, " ~ Pop * Temp * Diet + Phosphorus + (1|Box)")
+  best_model <- glmmTMB(as.formula(formula_str), data=sub_df)
+  
+  # 2. ANOVA & Summary
+  sink(log_file, append=TRUE)
+  cat("\n____________________________________________________\nANOVA Results (Type II):\n")
+  print(Anova(best_model, type = 2))
+  cat("\n____________________________________________________\nGLMM Coefficients Summary:\n")
+  print(summary(best_model))
+  sink()
+  
+  # 3. DHARMa Residuals
+  png(filename = file.path(out_dir, paste0(metric_col, "_DHARMa_residuals.png")), width = 1000, height = 800)
+  par(mfrow = c(2, 2))
+  residuals_gr <- simulateResiduals(fittedModel = best_model, quantreg = TRUE)
+  # Save residual tests to log
+  sink(log_file, append=TRUE)
+  cat("\n____________________________________________________\nResiduals Test:\n")
+  print(testResiduals(residuals_gr, plot=FALSE))
+  sink()
+  # Plot residuals vs factors
+  plotResiduals(residuals_gr, form = sub_df$Temp, main = "Residuals vs Temp") 
+  plotResiduals(residuals_gr, form = sub_df$Diet, main = "Residuals vs Diet") 
+  plotResiduals(residuals_gr, form = sub_df$Pop, main = "Residuals vs Pop") 
+  plotResiduals(residuals_gr, form = sub_df$Phosphorus, main = "Residuals vs Phosphorus")
+  dev.off()
+  
+  # 4. EMMEANS Post-Hoc Comparisons
+  # Main effects
+  main_effects1(best_model, "Pop", metric_col, log_file)
+  main_effects1(best_model, "Temp", metric_col, log_file)
+  main_effects1(best_model, "Diet", metric_col, log_file)
+  
+  # Interactions
+  main_effects2(best_model, "Diet", "Temp", metric_col, log_file)
+  main_effects2(best_model, "Diet", "Pop", metric_col, log_file)
+  main_effects2(best_model, "Temp", "Pop", metric_col, log_file)
+  
+  # 5. Interaction Plots (cat_plot)
+  # Pop vs Temp separated by Diet
+  png1_path <- file.path(out_dir, paste0(metric_col, "_interaction_Pop_vs_Temp_by_Diet.png"))
+  create_cat_plot(best_model, "Pop", "Temp", "Diet", ylab_name, metric_col, sub_df, png1_path)
+  
+  # Temp vs Pop separated by Diet
+  png2_path <- file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop.png"))
+  create_cat_plot(best_model, "Temp", "Diet", "Pop", ylab_name, metric_col, sub_df, png2_path)
+  
+  print(paste("Done for", metric_col))
 }
 
-shannon_aov  <- get_anova(shannon_res,  "shannon_entropy")
-observed_aov <- get_anova(observed_res, "observed_features")
-faithpd_aov  <- get_anova(faithpd_res,  "faith_pd")
+# ---- Execute Pipeline ----
 
-# FDR on ANOVA p-values per metric
-adjust_anova_fdr <- function(aov_tbl) {
-  p_col <- grep("Pr", colnames(aov_tbl), value = TRUE)[1]
-  aov_tbl$p_fdr <- p.adjust(aov_tbl[[p_col]], method = "fdr")
-  return(aov_tbl)
-}
-
-shannon_aov  <- adjust_anova_fdr(shannon_aov)
-observed_aov <- adjust_anova_fdr(observed_aov)
-faithpd_aov  <- adjust_anova_fdr(faithpd_aov)
-
-anova_all <- rbind(shannon_aov, observed_aov, faithpd_aov)
-write.table(anova_all, anova_file, sep="\t", row.names=FALSE, quote=FALSE)
+run_analysis("shannon_entropy", "Shannon Diversity")
+run_analysis("observed_features", "Observed Features (ASVs)")
+run_analysis("faith_pd", "Faith's Phylogenetic Diversity")
 
 # 5. Plotting
 plot_metric <- function(metric_name, title, output_file) {
   p <- ggplot(df, aes_string(x="Temp", y=metric_name, fill="Diet")) +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(position=position_jitterdodge(), alpha=0.3, size=1) +
+    geom_boxplot(outlier.shape = NA, alpha=0.7, width=0.7) +
+    geom_jitter(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+                alpha=0.4, size=1.2, color="grey40") +
     facet_wrap(~Pop) +
+    scale_fill_manual(values = c("A" = "#F8766D", "M" = "#619CFF", "P" = "#00BA38")) +
     theme_bw() +
-    labs(title=title, x="Temperature (°C)", y=metric_name) +
-    scale_fill_brewer(palette="Set1")
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major.x = element_blank(),
+          strip.background = element_rect(fill="grey95"),
+          legend.position = "right",
+          plot.title = element_text(hjust = 0, size = 14)) +
+    labs(title=title, x="Temperature (°C)", y=metric_name, fill="Diet")
   
-  ggsave(output_file, p, width=8, height=6)
+  ggsave(output_file, p, width=10, height=7, dpi=300)
 }
 
-plot_metric("shannon_entropy",   "Shannon Diversity by Temp, Diet, and Population",  shannon_plot)
-plot_metric("observed_features", "Observed Features by Temp, Diet, and Population", observed_plot)
-plot_metric("faith_pd",          "Faith's Phylogenetic Diversity by Temp, Diet, and Pop", faithpd_plot)
+plot_metric("shannon_entropy",   "Shannon Diversity by Temp, Diet, and Population",  file.path(out_dir, "Shannon_plot.png"))
+plot_metric("observed_features", "Observed Features by Temp, Diet, and Population", file.path(out_dir, "Observed_plot.png"))
+plot_metric("faith_pd",          "Faith's Phylogenetic Diversity by Temp, Diet, and Population", file.path(out_dir, "FaithPD_plot.png"))
 
-message("GLMM analysis complete. Results saved to glmm_outputs/")
+print("All advanced GLMM analyses completed successfully.")

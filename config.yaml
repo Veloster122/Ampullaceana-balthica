@@ -71,8 +71,8 @@ discriminants:
 
 diversity:
   # !! CHECKPOINT 2: Set these AFTER viewing alpha rarefaction curve !!
-  max_depth: 0    # <-- UPDATE to Median Frequency from taxa freq table
-  raref_depth: 0  # <-- UPDATE to where alpha rarefaction stabilizes
+  max_depth: 242655    # <-- Median Frequency from taxa freq table
+  raref_depth: 50000  # <-- Where alpha rarefaction stabilizes
 
 # Variables to test in ANOVA and beta diversity (from metadata)
 metadata_columns:
