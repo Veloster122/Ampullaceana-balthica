@@ -74,4 +74,6 @@ rule all_phase2:
         "glmm_outputs/observed_features_summary_results.txt",
         "glmm_outputs/faith_pd_summary_results.txt",
         "glmm_outputs/shannon_entropy_DHARMa_residuals.png",
-        "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png"
+        "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png",
+        "glmm_outputs/PCA_Traits_biplot_Temp.png",
+        "glmm_outputs/PCA_Traits_biplot_Diet.png"

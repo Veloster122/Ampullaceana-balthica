@@ -47,7 +47,9 @@ rule glmm_analysis:
         observed_summary = "glmm_outputs/observed_features_summary_results.txt",
         faithpd_summary  = "glmm_outputs/faith_pd_summary_results.txt",
         shannon_dharma   = "glmm_outputs/shannon_entropy_DHARMa_residuals.png",
-        shannon_plot     = "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png"
+        shannon_plot     = "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png",
+        pca_temp         = "glmm_outputs/PCA_Traits_biplot_Temp.png",
+        pca_diet         = "glmm_outputs/PCA_Traits_biplot_Diet.png"
     shell:
         """
         mkdir -p glmm_outputs

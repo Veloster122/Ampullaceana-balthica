@@ -48,25 +48,28 @@ df <- df %>%
     Pop = as.factor(Pop),
     Box = as.factor(Box)
   )
-# ---- PCA for Size Variables (Bonus Quest) ----
-# Supervisor's request: Combine Ini_weight, Shell_IL, and Shell_IAA into a single Size_PC1
-size_vars <- c("Ini_weight", "Shell_IL", "Shell_IAA")
-for (var in size_vars) {
+# ---- PCA for Morphological Traits ----
+pca_vars <- unique(c("Ini_weight", "Shell_IL", "Shell_IAA", "N_clutches_per day", "Av_stick_height", "Fin_weight", "Growth_rate", "Shell_FL", "Shell_FAA"))
+
+for (var in pca_vars) {
   df[[var]] <- as.numeric(df[[var]])
   df[[var]][is.na(df[[var]])] <- mean(df[[var]], na.rm = TRUE) # Impute NAs to prevent PCA failure
 }
-pca_res <- prcomp(df[, size_vars], center = TRUE, scale. = TRUE)
-df$Size_PC1 <- pca_res$x[, 1]
+
+pca_res <- prcomp(df[, pca_vars], center = TRUE, scale. = TRUE)
+df$Size_PC1 <- pca_res$x[, 1] # Keep variable name for downstream GLMMs compatibility
+
 # Save PCA summary to file
-pca_log <- file.path(out_dir, "PCA_Size_summary.txt")
+pca_log <- file.path(out_dir, "PCA_Traits_summary.txt")
 sink(pca_log)
-cat("=== PCA Summary for Size Variables ===\n")
-cat("Variables included: Ini_weight, Shell_IL, Shell_IAA\n\n")
+cat("=== PCA Summary for Morphological Traits ===\n")
+cat("Variables included:", paste(pca_vars, collapse=", "), "\n\n")
 print(summary(pca_res))
 cat("\n=== PCA Loadings (Eigenvectors) ===\n")
 print(pca_res$rotation)
 sink()
-# Save PCA biplot (Advanced ggplot2 version using Binned Metadata)
+
+# Save PCA biplots (Advanced ggplot2 version using Binned Metadata)
 binned_meta_path <- file.path(dirname(metadata_file), "Ampullaceana_balthica_metadata_binned.tsv")
 if (file.exists(binned_meta_path)) {
   binned_df <- read.table(binned_meta_path, sep="\t", header=TRUE, check.names=FALSE)
@@ -80,18 +83,31 @@ if (file.exists(binned_meta_path)) {
   # Scale arrows to fit plot
   mult <- min(max(pca_data$PC1, na.rm=T)/max(abs(loadings$PC1)), max(pca_data$PC2, na.rm=T)/max(abs(loadings$PC2))) * 0.8
   
-  pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2)) +
-    geom_point(aes(color = Pop), alpha = 0.8, size = 3) +
-    geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1 * mult, yend = PC2 * mult), 
-                 arrow = arrow(length = unit(0.2, "cm")), color = "black", linewidth = 1) +
-    geom_text(data = loadings, aes(x = PC1 * mult * 1.15, y = PC2 * mult * 1.15, label = var), 
-              color = "darkred", size = 5, fontface="bold") +
-    scale_color_manual(values = c("PT" = "#F8766D", "SE" = "#00BFC4")) +
-    theme_bw() +
-    labs(title = "PCA Biplot of Initial Size Variables", x = "PC1", y = "PC2", color = "Population") +
-    theme(panel.grid.minor = element_blank())
+  # Calculate variance percentages for axes
+  pc1_var <- round(100 * pca_res$sdev[1]^2 / sum(pca_res$sdev^2), 1)
+  pc2_var <- round(100 * pca_res$sdev[2]^2 / sum(pca_res$sdev^2), 1)
+  pc1_label <- paste0("PC1 (", pc1_var, "%)")
+  pc2_label <- paste0("PC2 (", pc2_var, "%)")
   
-  ggsave(file.path(out_dir, "PCA_Size_biplot.png"), plot = pca_plot, width = 8, height = 6, dpi = 300)
+  generate_pca_biplot <- function(color_col) {
+    pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2)) +
+      geom_point(aes_string(color = color_col), alpha = 0.8, size = 3) +
+      geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1 * mult, yend = PC2 * mult), 
+                   arrow = arrow(length = unit(0.2, "cm")), color = "black", linewidth = 1) +
+      geom_text(data = loadings, aes(x = PC1 * mult * 1.15, y = PC2 * mult * 1.15, label = var), 
+                color = "darkred", size = 4, fontface="bold") +
+      theme_bw() +
+      labs(title = paste("PCA Biplot of Morphological Traits by", color_col), x = pc1_label, y = pc2_label, color = color_col) +
+      theme(panel.grid.minor = element_blank())
+    
+    ggsave(file.path(out_dir, paste0("PCA_Traits_biplot_", color_col, ".png")), plot = pca_plot, width = 8, height = 6, dpi = 300)
+  }
+  
+  generate_pca_biplot("Box")
+  generate_pca_biplot("Temp")
+  generate_pca_biplot("Diet")
+  generate_pca_biplot("Phosphorus")
+  generate_pca_biplot("Pop")
 }
 # ---- Helper Functions ----
 main_effects1 <- function(model, a, metric_name, log_file) {
