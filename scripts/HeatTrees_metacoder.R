@@ -99,20 +99,21 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name) {
   # Merge back
   obj$data$diff <- diff_sub 
   
-  set.seed(42) # For reproducible layout
+  set.seed(50) # For reproducible layout
   p <- heat_tree(obj,
                  node_label = taxon_names,
                  node_size = n_obs,
                  node_color = log2_fold_change,
+                 node_label_size_range = c(0.0035, 0.035), 
                  node_color_range = c("darkolivegreen4", "gray80", "firebrick"), # Cyan to Red
                  node_color_trans = "linear",
                  node_color_interval = c(-3, 3),
                  edge_color_range = c("darkolivegreen4", "gray80", "firebrick"),
-                 node_size_axis_label = "OTU count",
+                 node_size_axis_label = "ASVs count",
                  node_color_axis_label = paste("Log2 FC (", treat_level, " vs ", ref_level, ")", sep=""),
                  layout = "fruchterman-reingold") +
     ggtitle(paste("Heat Tree: ", group_col, " (", treat_level, " vs ", ref_level, ")", sep="")) +
-    labs(subtitle = paste("🔴 Red/Pink: Mais abundante em", treat_level, "  |  🔵 Blue/Cyan: Mais abundante em", ref_level)) +
+    labs(subtitle = paste("Vermelho: Mais abundante em", treat_level, "  |  Verde: Mais abundante em", ref_level)) +
     theme(plot.title = element_text(size = 34, face = "bold", hjust = 0.5, margin = margin(b = 10)),
           plot.subtitle = element_text(size = 24, face = "italic", hjust = 0.5, margin = margin(b = 20)))
   
