@@ -44,3 +44,14 @@ names*.txt
 Thumbs.db
 *.swp
 *.swo
+
+# --- Python, GUI & Security ---
+.env
+.env.local
+secrets.yaml
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+Ampullaceana_Resultados.zip

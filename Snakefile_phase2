@@ -47,6 +47,7 @@ if config["diversity"]["raref_depth"] == 0:
 # ── Include modular rule files ───────────────────────────────────────────────
 include: "rules/phylo_diversity.smk"
 include: "rules/glmm.smk"
+include: "rules/heattrees.smk"
 
 # ── Target rule: all final outputs of Phase 2 ───────────────────────────────
 rule all_phase2:
@@ -76,4 +77,8 @@ rule all_phase2:
         "glmm_outputs/shannon_entropy_DHARMa_residuals.png",
         "glmm_outputs/shannon_entropy_interaction_Pop_vs_Temp_by_Diet.png",
         "glmm_outputs/PCA_Traits_biplot_Temp.png",
-        "glmm_outputs/PCA_Traits_biplot_Diet.png"
+        "glmm_outputs/PCA_Traits_biplot_Diet.png",
+        # Heat Trees
+        "Outputs/HeatTree_Temp_20_vs_14.png",
+        "Outputs/HeatTree_Pop_PT_vs_SE.png",
+        "Outputs/HeatTree_Phosphorus_3_vs_0.png"
