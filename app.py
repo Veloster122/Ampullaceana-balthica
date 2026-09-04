@@ -6,6 +6,7 @@ Provides an interactive, reproducible dashboard for configuring, running, and vi
 import os
 import sys
 import time
+import platform
 import pandas as pd
 import streamlit as st
 from pathlib import Path
@@ -83,22 +84,36 @@ with st.sidebar:
         st.markdown("<span class='status-badge-ok'>Ativo</span>" if envs["ssh"] else "<span class='status-badge-warn'>Inativo</span>", unsafe_allow_html=True)
     
     env_defaults = pipeline_runner.load_env_settings()
+    is_linux = platform.system() == "Linux"
 
-    exec_mode = st.selectbox(
-        "Modo de Execução:",
-        options=["wsl", "ssh", "local"],
-        format_func=lambda x: {
+    if is_linux:
+        mode_options = ["local", "ssh"]
+        mode_labels = {
+            "local": "💻 Servidor Local (Conda Nativo)",
+            "ssh": "🌐 Outro Servidor Remoto (SSH)",
+        }
+        mode_idx = 0
+    else:
+        mode_options = ["wsl", "ssh", "local"]
+        mode_labels = {
             "wsl": "🐧 WSL2 Ubuntu (Local)",
             "ssh": "🌐 Servidor Remoto (SSH)",
             "local": "💻 Conda Direto (Local)",
-        }[x],
-        index=0 if envs["wsl"] else (1 if envs["ssh"] else 2)
+        }
+        mode_idx = 0 if envs["wsl"] else (1 if envs["ssh"] else 2)
+
+    exec_mode = st.selectbox(
+        "Modo de Execução:",
+        options=mode_options,
+        format_func=lambda x: mode_labels.get(x, x),
+        index=mode_idx
     )
 
     if exec_mode == "wsl":
         wsl_distro = st.text_input("Distribuição WSL:", value="Ubuntu")
         ssh_host = ""
         remote_path = ""
+        ssh_pass = ""
     elif exec_mode == "ssh":
         wsl_distro = "Ubuntu"
         ssh_host = st.text_input("Host SSH:", value=env_defaults.get("SSH_HOST", ""), placeholder="utilizador@servidor.instituicao.pt")
@@ -121,7 +136,8 @@ with st.sidebar:
         remote_path = ""
         ssh_pass = ""
 
-    conda_env = st.text_input("Ambiente Conda QIIME 2:", value=env_defaults.get("CONDA_ENV", "qiime2-amplicon-2026.1"))
+    default_conda = env_defaults.get("CONDA_ENV", "qiime2-amplicon-2024.10")
+    conda_env = st.text_input("Ambiente Conda QIIME 2:", value=default_conda)
     
     st.markdown("---")
     st.info("💡 **Dica de Reproducibilidade:**\nTodos os parâmetros e execuções são registados no ficheiro `config.yaml` para rastreabilidade científica total.")
@@ -327,12 +343,17 @@ with tab_exec:
         log_lines = []
         
         with st.spinner(f"A executar Fase {phase}{' (Dry-Run)' if dry_run else ''}..."):
-            returncode = 0
-            for line in pipeline_runner.run_pipeline_stream(cmd):
-                log_lines.append(line)
-                # Keep last 50 lines to keep UI responsive
-                display_text = "".join(log_lines[-50:])
-                log_placeholder.code(display_text, language="bash")
+            runner_gen = pipeline_runner.run_pipeline_stream(cmd)
+            returncode = -1
+            try:
+                while True:
+                    line = next(runner_gen)
+                    log_lines.append(line)
+                    # Keep last 50 lines to keep UI responsive
+                    display_text = "".join(log_lines[-50:])
+                    log_placeholder.code(display_text, language="bash")
+            except StopIteration as e:
+                returncode = e.value if e.value is not None else 0
                 
             if returncode == 0:
                 st.success(f"🎉 Fase {phase} concluída com sucesso!")
@@ -344,7 +365,7 @@ with tab_exec:
                     else:
                         st.warning(f"Aviso na transferência:\n{sync_log}")
             else:
-                st.error(f"Execução terminada com código de saída: {returncode}. Verifique o registo acima.")
+                st.error(f"❌ Execução falhou com código de erro {returncode}. Verifique a consola acima.")
 
 
 # --- TAB 5: RESULTADOS & GALERIA ---

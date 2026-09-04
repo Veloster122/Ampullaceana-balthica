@@ -9,6 +9,7 @@ import sys
 import yaml
 import shutil
 import zipfile
+import platform
 import subprocess
 from typing import Generator, Dict, Any, List, Optional
 from pathlib import Path
@@ -128,7 +129,15 @@ def build_command(
 
     else:
         # Local direct run
-        return f"conda run -n {conda_env} {base_cmd}"
+        if platform.system() == "Linux":
+            return (
+                f'bash -c "source ~/miniconda3/etc/profile.d/conda.sh 2>/dev/null || '
+                f'source ~/anaconda3/etc/profile.d/conda.sh 2>/dev/null || true; '
+                f'conda activate {conda_env} 2>/dev/null || true; '
+                f'{base_cmd}"'
+            )
+        else:
+            return f"conda run -n {conda_env} {base_cmd}"
 
 
 def run_pipeline_stream(cmd: str) -> Generator[str, None, int]:
