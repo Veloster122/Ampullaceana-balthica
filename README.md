@@ -57,7 +57,7 @@ Ampullaceana-balthica/
 ├── app.py                         # Interface gráfica opcional (Streamlit)
 ├── pipeline_runner.py             # Módulo de suporte à GUI e sincronização
 ├── iniciar_pipeline.bat           # Lançador de 1 clique para Windows
-├── .env.example                   # Modelo seguro para credenciais de servidor remoto
+├── iniciar_pipeline.sh            # Lançador para Linux / Ubuntu
 └── README.md
 ```
 
@@ -134,11 +134,12 @@ snakemake -s Snakefile_phase2 --configfile config.yaml -n
 Como funcionalidade complementar e opcional para utilizadores que prefiram uma abordagem visual para explorar os resultados ou orquestrar o pipeline:
 
 * **No Windows:** Dê um duplo-clique no ficheiro `iniciar_pipeline.bat`.
-* **No Terminal:** Execute:
+* **No Linux / Ubuntu (Servidor):** Execute:
   ```bash
-  pip install streamlit pandas pyyaml paramiko
-  streamlit run app.py
+  chmod +x iniciar_pipeline.sh
+  ./iniciar_pipeline.sh
   ```
+  *(Se executar no servidor, pode aceder a partir do navegador de qualquer computador da rede em `http://<IP_DO_SERVIDOR>:8501`).*
 
 A aplicação abre no navegador (`http://localhost:8501`) e permite:
 - Inspecionar a tabela de metadados e os ficheiros FASTQ;
