@@ -48,6 +48,7 @@ if config["diversity"]["raref_depth"] == 0:
 include: "rules/phylo_diversity.smk"
 include: "rules/glmm.smk"
 include: "rules/heattrees.smk"
+include: "rules/relative_abundance.smk"
 
 # ── Target rule: all final outputs of Phase 2 ───────────────────────────────
 rule all_phase2:
@@ -81,4 +82,9 @@ rule all_phase2:
         # Heat Trees
         "Outputs/HeatTree_Temp_20_vs_14.png",
         "Outputs/HeatTree_Pop_PT_vs_SE.png",
-        "Outputs/HeatTree_Phosphorus_3_vs_0.png"
+        "Outputs/HeatTree_Phosphorus_3_vs_0.png",
+        # Relative Abundance stacked bar plots
+        "Outputs/RelativeAbundance_Diet.png",
+        "Outputs/RelativeAbundance_Temp.png",
+        "Outputs/RelativeAbundance_Phosphorus.png",
+        "Outputs/RelativeAbundance_Pop.png"
