@@ -94,20 +94,20 @@ make_long <- function(df, rank_col) {
 long_phylum <- make_long(rel_mat, "Phylum")
 long_order  <- make_long(rel_mat, "Order")
 
-# ── Helper: collapse to top 5 + "Other" ──────────────────────────────────────
-top5_and_other <- function(long_df) {
-  top5 <- long_df %>%
+# ── Helper: collapse to top 10 + "Other" ──────────────────────────────────────
+top10_and_other <- function(long_df) {
+  top10 <- long_df %>%
     group_by(Taxon) %>%
     summarise(TotalAbund = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
-    slice_max(TotalAbund, n = 5) %>%
+    slice_max(TotalAbund, n = 10) %>%
     pull(Taxon)
 
   long_df %>%
-    mutate(Taxon = ifelse(Taxon %in% top5, Taxon, "Other"))
+    mutate(Taxon = ifelse(Taxon %in% top10, Taxon, "Other"))
 }
 
-phylum_top5 <- top5_and_other(long_phylum)
-order_top5  <- top5_and_other(long_order)
+phylum_top10 <- top10_and_other(long_phylum)
+order_top10  <- top10_and_other(long_order)
 
 # ── Colour palettes ───────────────────────────────────────────────────────────
 build_palette <- function(taxa_vec, other_col = "grey80") {
@@ -120,21 +120,21 @@ build_palette <- function(taxa_vec, other_col = "grey80") {
   setNames(c(cols, other_col), c(taxa, "Other"))
 }
 
-phy_pal <- build_palette(phylum_top5$Taxon)
-ord_pal <- build_palette(order_top5$Taxon)
+phy_pal <- build_palette(phylum_top10$Taxon)
+ord_pal <- build_palette(order_top10$Taxon)
 
 # ── Helper: one stacked bar plot ─────────────────────────────────────────────
-stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 5) {
+stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 10) {
 
-  # Re-collapse top 5 within this specific factor
-  top5_local <- long_df %>%
+  # Re-collapse top 10 within this specific factor
+  top10_local <- long_df %>%
     group_by(Taxon) %>%
     summarise(tot = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
     slice_max(tot, n = n_top) %>%
     pull(Taxon)
 
   plot_df <- long_df %>%
-    mutate(Taxon = ifelse(Taxon %in% top5_local, Taxon, "Other")) %>%
+    mutate(Taxon = ifelse(Taxon %in% top10_local, Taxon, "Other")) %>%
     # Step 1: sum all "Other" taxa within each sample first
     group_by(.data[[x_var]], SampleID, Taxon) %>%
     summarise(RelAbund = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
@@ -142,8 +142,21 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 5) {
     group_by(.data[[x_var]], Taxon) %>%
     summarise(RelAbund = mean(RelAbund, na.rm = TRUE), .groups = "drop")
 
-  taxa_ordered <- c(sort(setdiff(unique(plot_df$Taxon), "Other")), "Other")
-  plot_df$Taxon <- factor(plot_df$Taxon, levels = taxa_ordered)
+  # Order taxa by total mean abundance (descending), Other always last
+  taxon_order <- plot_df %>%
+    group_by(Taxon) %>%
+    summarise(tot = sum(RelAbund), .groups = "drop") %>%
+    filter(Taxon != "Other") %>%
+    arrange(desc(tot)) %>%
+    pull(Taxon)
+  taxa_ordered <- c(taxon_order, "Other")
+
+  # Factor levels: bottom-to-top for stacking (least abundant at bottom of bar = reversed)
+  # Legend: most abundant at top → use guides(fill = guide_legend(reverse = FALSE))
+  # We want bars stacked with most abundant at BOTTOM (visually prominent),
+  # and legend showing most abundant at TOP — so factor levels ascending for stacking,
+  # then reverse = TRUE in guide to flip legend only.
+  plot_df$Taxon <- factor(plot_df$Taxon, levels = rev(taxa_ordered))
 
   local_pal <- build_palette(plot_df$Taxon)
 
@@ -154,6 +167,7 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 5) {
     scale_fill_manual(values = local_pal, name = fill_lab) +
     scale_y_continuous(expand = c(0, 0), limits = c(0, 101)) +
     labs(x = x_lab, y = "Relative Abundance (%)") +
+    guides(fill = guide_legend(reverse = TRUE)) +   # most abundant at top of legend
     theme_classic(base_size = 12) +
     theme(
       legend.key.size  = unit(0.45, "cm"),
@@ -181,13 +195,13 @@ for (factor_name in names(factors)) {
   cat(sprintf("  Generating plot for factor: %s\n", factor_name))
 
   # Panel A – Phyla
-  pA <- stacked_bar(phylum_top5, x_col, x_lab, "Bacterial Phylum", phy_pal) +
-    ggtitle(sprintf("Top 5 Bacterial Phyla Relative Abundance by %s", x_lab)) +
+  pA <- stacked_bar(phylum_top10, x_col, x_lab, "Bacterial Phylum", phy_pal) +
+    ggtitle(sprintf("Top 10 Bacterial Phyla Relative Abundance by %s", x_lab)) +
     labs(tag = "A")
 
   # Panel B – Orders
-  pB <- stacked_bar(order_top5, x_col, x_lab, "Bacterial Order", ord_pal) +
-    ggtitle(sprintf("Top 5 Bacterial Order Relative Abundance by %s", x_lab)) +
+  pB <- stacked_bar(order_top10, x_col, x_lab, "Bacterial Order", ord_pal) +
+    ggtitle(sprintf("Top 10 Bacterial Order Relative Abundance by %s", x_lab)) +
     labs(tag = "B")
 
   # Combine panels A + B with patchwork
