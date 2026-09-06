@@ -135,6 +135,10 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 5) {
 
   plot_df <- long_df %>%
     mutate(Taxon = ifelse(Taxon %in% top5_local, Taxon, "Other")) %>%
+    # Step 1: sum all "Other" taxa within each sample first
+    group_by(.data[[x_var]], SampleID, Taxon) %>%
+    summarise(RelAbund = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
+    # Step 2: then average across samples within each group
     group_by(.data[[x_var]], Taxon) %>%
     summarise(RelAbund = mean(RelAbund, na.rm = TRUE), .groups = "drop")
 
