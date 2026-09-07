@@ -207,23 +207,26 @@ rule diversity_analysis:
             --i-data {params.artifact}/ancombc2_pop_temp.qza \
             --o-visualization {output.da_pop_temp}
 
-        # Interaction: Pop * Temp (tests whether temperature effect differs between populations)
+        # Interaction: Pop * Temp — explicit notation required by QIIME2 formula parser
+        # Pop * Temp expands to: Pop + Temp + Pop:Temp
         qiime composition ancombc2 \
             --i-table {params.artifact}/table_abund_collapsed.qza \
             --m-metadata-file {input.metadata} \
-            --p-fixed-effects-formula 'Pop * Temp' \
+            --p-fixed-effects-formula 'Pop + Temp + Pop:Temp' \
             --o-ancombc2-output {params.artifact}/ancombc2_pop_x_temp.qza
         qiime composition ancombc2-visualizer \
             --i-data {params.artifact}/ancombc2_pop_x_temp.qza \
             --o-visualization {output.da_pop_x_temp}
 
-        # Interaction: Pop * Diet (tests whether diet effect differs between populations)
+        # Interaction: Pop * Diet — explicit notation required by QIIME2 formula parser
+        # Pop * Diet expands to: Pop + Diet + Pop:Diet
         qiime composition ancombc2 \
             --i-table {params.artifact}/table_abund_collapsed.qza \
             --m-metadata-file {input.metadata} \
-            --p-fixed-effects-formula 'Pop * Diet' \
+            --p-fixed-effects-formula 'Pop + Diet + Pop:Diet' \
             --o-ancombc2-output {params.artifact}/ancombc2_pop_x_diet.qza
         qiime composition ancombc2-visualizer \
             --i-data {params.artifact}/ancombc2_pop_x_diet.qza \
             --o-visualization {output.da_pop_x_diet}
         """
+
