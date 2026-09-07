@@ -82,13 +82,21 @@ rel_mat$Phylum <- merged$Phylum
 rel_mat$Order  <- merged$Order
 
 # ── Helper: long table aggregated by taxon level ─────────────────────────────
+# Add combined interaction columns to metadata (mirrors ancombc2_pop logic)
+metadata <- metadata %>%
+  mutate(
+    Pop_x_Temp = paste(Pop, Temp, sep = "_"),
+    Pop_x_Diet = paste(Pop, Diet, sep = "_")
+  )
+
 make_long <- function(df, rank_col) {
   df %>%
     group_by(.data[[rank_col]]) %>%
     summarise(across(all_of(sample_cols), sum, na.rm = TRUE), .groups = "drop") %>%
     pivot_longer(-all_of(rank_col), names_to = "SampleID", values_to = "RelAbund") %>%
     rename(Taxon = all_of(rank_col)) %>%
-    left_join(metadata %>% select(SampleID, Diet, Temp, Phosphorus, Pop), by = "SampleID")
+    left_join(metadata %>% select(SampleID, Diet, Temp, Phosphorus, Pop,
+                                  Pop_x_Temp, Pop_x_Diet), by = "SampleID")
 }
 
 long_phylum <- make_long(rel_mat, "Phylum")
@@ -181,10 +189,12 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 10) {
 
 # ── Main loop: one figure per experimental factor ─────────────────────────────
 factors <- list(
-  Diet       = list(col = "Diet",       label = "Diet",       values = c("A", "M", "P")),
-  Temp       = list(col = "Temp",       label = "Temperature", values = c("14", "20")),
-  Phosphorus = list(col = "Phosphorus", label = "Phosphorus", values = c("0", "3")),
-  Pop        = list(col = "Pop",        label = "Population", values = c("PT", "SE"))
+  Diet       = list(col = "Diet",       label = "Diet"),
+  Temp       = list(col = "Temp",       label = "Temperature"),
+  Phosphorus = list(col = "Phosphorus", label = "Phosphorus"),
+  Pop        = list(col = "Pop",        label = "Population"),
+  Pop_x_Temp = list(col = "Pop_x_Temp", label = "Population × Temperature"),
+  Pop_x_Diet = list(col = "Pop_x_Diet", label = "Population × Diet")
 )
 
 for (factor_name in names(factors)) {

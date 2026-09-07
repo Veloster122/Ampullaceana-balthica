@@ -90,4 +90,6 @@ rule all_phase2:
         "Outputs/RelativeAbundance_Diet.png",
         "Outputs/RelativeAbundance_Temp.png",
         "Outputs/RelativeAbundance_Phosphorus.png",
-        "Outputs/RelativeAbundance_Pop.png"
+        "Outputs/RelativeAbundance_Pop.png",
+        "Outputs/RelativeAbundance_Pop_x_Temp.png",
+        "Outputs/RelativeAbundance_Pop_x_Diet.png"
