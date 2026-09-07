@@ -71,6 +71,8 @@ rule all_phase2:
         config["directory_name"]["viz_dir_div"] + "/da_barplot_phosphorus.qzv",
         config["directory_name"]["viz_dir_div"] + "/da_barplot_temp_diet_phosphorus.qzv",
         config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_temp.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_x_temp.qzv",
+        config["directory_name"]["viz_dir_div"] + "/da_barplot_pop_x_diet.qzv",
         # GLMMs
         "glmm_outputs/shannon_entropy_summary_results.txt",
         "glmm_outputs/observed_features_summary_results.txt",
