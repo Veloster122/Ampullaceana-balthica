@@ -251,11 +251,15 @@ rule ancombc2_main:
 # ── Rule 6b: ANCOMBC2 — population interaction effects ──────────────────────
 rule ancombc2_pop:
     """Differential abundance for Pop (additive) and Pop x Temp / Pop x Diet interactions.
-    Tests whether the effect of temperature and diet differs between populations PT and SE."""
+    QIIME2 does not support R-style interaction syntax (Pop:Temp) in formula strings.
+    Workaround: create combined categorical columns (Pop_x_Temp, Pop_x_Diet) in a
+    temporary metadata file, then use each as a single variable in ANCOMBC2.
+    This is statistically equivalent and captures all group contrasts."""
     input:
         collapsed_tbl = _ART + "/table_abund_collapsed.qza",
         metadata      = config["raw"]["metadata"]
     output:
+        meta_inter    = _ART + "/metadata_interactions.tsv",
         da_pop_temp   = _VIZ + "/da_barplot_pop_temp.qzv",
         da_pop_x_temp = _VIZ + "/da_barplot_pop_x_temp.qzv",
         da_pop_x_diet = _VIZ + "/da_barplot_pop_x_diet.qzv"
@@ -273,25 +277,48 @@ rule ancombc2_pop:
             --i-data {_ART}/ancombc2_pop_temp.qza \
             --o-visualization {output.da_pop_temp}
 
-        # Pop x Temp interaction (Pop + Temp + Pop:Temp)
-        # The Pop:Temp coefficient identifies taxa whose temperature response
-        # differs significantly between Portuguese and Swedish populations.
+        # Create metadata with combined interaction columns
+        # Pop_x_Temp: PT_14, PT_20, SE_14, SE_20
+        # Pop_x_Diet: PT_A,  PT_M,  PT_P,  SE_A,  SE_M,  SE_P
+        python3 - <<'PYEOF'
+import pandas as pd
+
+meta = pd.read_csv("{input.metadata}", sep="\\t")
+
+# Detect and preserve QIIME2 #q2:types directive row
+has_types = str(meta.iloc[0, 0]).strip() == "#q2:types"
+if has_types:
+    types_row = meta.iloc[[0]].copy()
+    meta      = meta.iloc[1:].copy()
+
+meta["Pop_x_Temp"] = meta["Pop"].astype(str) + "_" + meta["Temp"].astype(str)
+meta["Pop_x_Diet"] = meta["Pop"].astype(str) + "_" + meta["Diet"].astype(str)
+
+if has_types:
+    types_row["Pop_x_Temp"] = "categorical"
+    types_row["Pop_x_Diet"] = "categorical"
+    meta = pd.concat([types_row, meta], ignore_index=True)
+
+meta.to_csv("{output.meta_inter}", sep="\\t", index=False)
+PYEOF
+
+        # Pop x Temp: each coefficient contrasts one Pop_x_Temp group vs reference (PT_14)
         qiime composition ancombc2 \
             --i-table {input.collapsed_tbl} \
-            --m-metadata-file {input.metadata} \
-            --p-fixed-effects-formula 'Pop + Temp + Pop:Temp' \
+            --m-metadata-file {output.meta_inter} \
+            --p-fixed-effects-formula 'Pop_x_Temp' \
+            --p-reference-levels 'Pop_x_Temp::PT_14' \
             --o-ancombc2-output {_ART}/ancombc2_pop_x_temp.qza
         qiime composition ancombc2-visualizer \
             --i-data {_ART}/ancombc2_pop_x_temp.qza \
             --o-visualization {output.da_pop_x_temp}
 
-        # Pop x Diet interaction (Pop + Diet + Pop:Diet)
-        # The Pop:Diet coefficient identifies taxa whose diet response
-        # differs significantly between Portuguese and Swedish populations.
+        # Pop x Diet: each coefficient contrasts one Pop_x_Diet group vs reference (PT_A)
         qiime composition ancombc2 \
             --i-table {input.collapsed_tbl} \
-            --m-metadata-file {input.metadata} \
-            --p-fixed-effects-formula 'Pop + Diet + Pop:Diet' \
+            --m-metadata-file {output.meta_inter} \
+            --p-fixed-effects-formula 'Pop_x_Diet' \
+            --p-reference-levels 'Pop_x_Diet::PT_A' \
             --o-ancombc2-output {_ART}/ancombc2_pop_x_diet.qza
         qiime composition ancombc2-visualizer \
             --i-data {_ART}/ancombc2_pop_x_diet.qza \
