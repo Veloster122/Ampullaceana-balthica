@@ -11,18 +11,20 @@ rule relative_abundance_plots:
         metadata    = config["raw"]["metadata"],
         script      = "scripts/relative_abundance_plots.R"
     output:
-        diet_png        = "Outputs/RelativeAbundance_Diet.png",
-        diet_pdf        = "Outputs/RelativeAbundance_Diet.pdf",
-        temp_png        = "Outputs/RelativeAbundance_Temp.png",
-        temp_pdf        = "Outputs/RelativeAbundance_Temp.pdf",
-        phos_png        = "Outputs/RelativeAbundance_Phosphorus.png",
-        phos_pdf        = "Outputs/RelativeAbundance_Phosphorus.pdf",
-        pop_png         = "Outputs/RelativeAbundance_Pop.png",
-        pop_pdf         = "Outputs/RelativeAbundance_Pop.pdf",
-        pop_x_temp_png  = "Outputs/RelativeAbundance_Pop_x_Temp.png",
-        pop_x_temp_pdf  = "Outputs/RelativeAbundance_Pop_x_Temp.pdf",
-        pop_x_diet_png  = "Outputs/RelativeAbundance_Pop_x_Diet.png",
-        pop_x_diet_pdf  = "Outputs/RelativeAbundance_Pop_x_Diet.pdf"
+        diet_png              = "Outputs/RelativeAbundance_Diet.png",
+        diet_pdf              = "Outputs/RelativeAbundance_Diet.pdf",
+        temp_png              = "Outputs/RelativeAbundance_Temp.png",
+        temp_pdf              = "Outputs/RelativeAbundance_Temp.pdf",
+        phos_png              = "Outputs/RelativeAbundance_Phosphorus.png",
+        phos_pdf              = "Outputs/RelativeAbundance_Phosphorus.pdf",
+        pop_png               = "Outputs/RelativeAbundance_Pop.png",
+        pop_pdf               = "Outputs/RelativeAbundance_Pop.pdf",
+        pop_x_temp_png        = "Outputs/RelativeAbundance_Pop_x_Temp.png",
+        pop_x_temp_pdf        = "Outputs/RelativeAbundance_Pop_x_Temp.pdf",
+        pop_x_diet_png        = "Outputs/RelativeAbundance_Pop_x_Diet.png",
+        pop_x_diet_pdf        = "Outputs/RelativeAbundance_Pop_x_Diet.pdf",
+        temp_x_phos_png       = "Outputs/RelativeAbundance_Temp_x_Phosphorus.png",
+        temp_x_phos_pdf       = "Outputs/RelativeAbundance_Temp_x_Phosphorus.pdf"
     shell:
         """
         Rscript {input.script} \
