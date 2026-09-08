@@ -85,10 +85,11 @@ rel_mat$Order  <- merged$Order
 # Add combined interaction columns to metadata
 metadata <- metadata %>%
   mutate(
-    Pop_x_Temp            = paste(Pop,  Temp,       sep = "_"),
-    Pop_x_Diet            = paste(Pop,  Diet,       sep = "_"),
-    Temp_x_Phosphorus     = paste(Temp, Phosphorus, sep = "_"),
-    Pop_x_Diet_x_Phosphorus = paste(Pop, Diet, Phosphorus, sep = "_")
+    Pop_x_Temp              = paste(Pop,  Temp,       sep = "_"),
+    Pop_x_Diet              = paste(Pop,  Diet,       sep = "_"),
+    Temp_x_Phosphorus       = paste(Temp, Phosphorus, sep = "_"),
+    Diet_x_Phosphorus       = paste(Diet, Phosphorus, sep = "_"),
+    Pop_x_Diet_x_Phosphorus = paste(Pop,  Diet, Phosphorus, sep = "_")
   )
 
 make_long <- function(df, rank_col) {
@@ -99,7 +100,8 @@ make_long <- function(df, rank_col) {
     rename(Taxon = all_of(rank_col)) %>%
     left_join(metadata %>% select(SampleID, Diet, Temp, Phosphorus, Pop,
                                   Pop_x_Temp, Pop_x_Diet,
-                                  Temp_x_Phosphorus, Pop_x_Diet_x_Phosphorus),
+                                  Temp_x_Phosphorus, Diet_x_Phosphorus,
+                                  Pop_x_Diet_x_Phosphorus),
               by = "SampleID")
 }
 
@@ -191,6 +193,59 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 10) {
     )
 }
 
+# ── Helper: faceted stacked bar (for three-way interactions) ─────────────────
+# x_var: column for x-axis within each facet (e.g. "Diet_x_Phosphorus")
+# facet_var: column to split into panels (e.g. "Pop")
+stacked_bar_faceted <- function(long_df, x_var, facet_var, x_lab, fill_lab, n_top = 10) {
+
+  top10_local <- long_df %>%
+    group_by(Taxon) %>%
+    summarise(tot = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
+    slice_max(tot, n = n_top) %>%
+    pull(Taxon)
+
+  plot_df <- long_df %>%
+    mutate(Taxon = ifelse(Taxon %in% top10_local, Taxon, "Other")) %>%
+    group_by(.data[[facet_var]], .data[[x_var]], SampleID, Taxon) %>%
+    summarise(RelAbund = sum(RelAbund, na.rm = TRUE), .groups = "drop") %>%
+    group_by(.data[[facet_var]], .data[[x_var]], Taxon) %>%
+    summarise(RelAbund = mean(RelAbund, na.rm = TRUE), .groups = "drop")
+
+  taxon_order <- plot_df %>%
+    group_by(Taxon) %>%
+    summarise(tot = sum(RelAbund), .groups = "drop") %>%
+    filter(Taxon != "Other") %>%
+    arrange(desc(tot)) %>%
+    pull(Taxon)
+  taxa_ordered <- c(taxon_order, "Other")
+  plot_df$Taxon <- factor(plot_df$Taxon, levels = rev(taxa_ordered))
+
+  local_pal <- build_palette(plot_df$Taxon)
+
+  ggplot(plot_df, aes(x = as.factor(.data[[x_var]]),
+                      y = RelAbund,
+                      fill = Taxon)) +
+    geom_bar(stat = "identity", colour = "white", linewidth = 0.25) +
+    scale_fill_manual(values = local_pal, name = fill_lab) +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 101)) +
+    facet_wrap(vars(.data[[facet_var]]), nrow = 1,
+               labeller = as_labeller(function(x) paste("Population:", x))) +
+    labs(x = x_lab, y = "Relative Abundance (%)") +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    theme_classic(base_size = 12) +
+    theme(
+      legend.key.size  = unit(0.45, "cm"),
+      legend.text      = element_text(size = 9),
+      legend.title     = element_text(face = "bold", size = 10),
+      axis.title       = element_text(face = "bold"),
+      plot.title       = element_text(hjust = 0.5, face = "bold", size = 11),
+      panel.grid.major = element_blank(),
+      strip.background = element_rect(fill = "grey90", colour = "grey60"),
+      strip.text       = element_text(face = "bold", size = 11),
+      panel.spacing    = unit(1, "lines")
+    )
+}
+
 # ── Main loop: one figure per experimental factor ─────────────────────────────
 factors <- list(
   Diet                    = list(col = "Diet",                    label = "Diet"),
@@ -200,7 +255,10 @@ factors <- list(
   Pop_x_Temp              = list(col = "Pop_x_Temp",              label = "Population × Temperature"),
   Pop_x_Diet              = list(col = "Pop_x_Diet",              label = "Population × Diet"),
   Temp_x_Phosphorus       = list(col = "Temp_x_Phosphorus",       label = "Temperature × Phosphorus"),
-  Pop_x_Diet_x_Phosphorus = list(col = "Pop_x_Diet_x_Phosphorus", label = "Population × Diet × Phosphorus")
+  Pop_x_Diet_x_Phosphorus = list(col  = "Diet_x_Phosphorus",
+                                  label = "Diet × Phosphorus",
+                                  facet = "Pop",
+                                  facet_label = "Population × Diet × Phosphorus")
 )
 
 for (factor_name in names(factors)) {
@@ -210,27 +268,46 @@ for (factor_name in names(factors)) {
 
   cat(sprintf("  Generating plot for factor: %s\n", factor_name))
 
-  # Panel A – Phyla
-  pA <- stacked_bar(phylum_top10, x_col, x_lab, "Bacterial Phylum", phy_pal) +
-    ggtitle(sprintf("Top 10 Bacterial Phyla Relative Abundance by %s", x_lab)) +
-    labs(tag = "A")
+  is_faceted <- !is.null(fac$facet)
 
-  # Panel B – Orders
-  pB <- stacked_bar(order_top10, x_col, x_lab, "Bacterial Order", ord_pal) +
-    ggtitle(sprintf("Top 10 Bacterial Order Relative Abundance by %s", x_lab)) +
-    labs(tag = "B")
+  if (is_faceted) {
+    # ── Faceted layout: PT | SE side by side ──────────────────────────────────
+    pA <- stacked_bar_faceted(phylum_top10, x_col, fac$facet,
+                               x_lab, "Bacterial Phylum") +
+      ggtitle(sprintf("Top 10 Bacterial Phyla Relative Abundance by %s", fac$facet_label)) +
+      labs(tag = "A")
 
-  # Combine panels A + B with patchwork
-  combined <- pA / pB +
-    plot_layout(heights = c(1, 1))
+    pB <- stacked_bar_faceted(order_top10, x_col, fac$facet,
+                               x_lab, "Bacterial Order") +
+      ggtitle(sprintf("Top 10 Bacterial Orders Relative Abundance by %s", fac$facet_label)) +
+      labs(tag = "B")
 
-  out_png <- file.path(out_dir, sprintf("RelativeAbundance_%s.png", factor_name))
-  out_pdf <- file.path(out_dir, sprintf("RelativeAbundance_%s.pdf", factor_name))
+    combined <- pA / pB + plot_layout(heights = c(1, 1))
 
-  ggsave(out_png, combined, width = 8, height = 10, dpi = 300)
-  ggsave(out_pdf, combined, width = 8, height = 10)
+    ggsave(file.path(out_dir, sprintf("RelativeAbundance_%s.png", factor_name)),
+           combined, width = 14, height = 10, dpi = 300)
+    ggsave(file.path(out_dir, sprintf("RelativeAbundance_%s.pdf", factor_name)),
+           combined, width = 14, height = 10)
 
-  cat(sprintf("  Saved: %s\n", out_png))
+  } else {
+    # ── Standard layout ───────────────────────────────────────────────────────
+    pA <- stacked_bar(phylum_top10, x_col, x_lab, "Bacterial Phylum", phy_pal) +
+      ggtitle(sprintf("Top 10 Bacterial Phyla Relative Abundance by %s", x_lab)) +
+      labs(tag = "A")
+
+    pB <- stacked_bar(order_top10, x_col, x_lab, "Bacterial Order", ord_pal) +
+      ggtitle(sprintf("Top 10 Bacterial Order Relative Abundance by %s", x_lab)) +
+      labs(tag = "B")
+
+    combined <- pA / pB + plot_layout(heights = c(1, 1))
+
+    ggsave(file.path(out_dir, sprintf("RelativeAbundance_%s.png", factor_name)),
+           combined, width = 8, height = 10, dpi = 300)
+    ggsave(file.path(out_dir, sprintf("RelativeAbundance_%s.pdf", factor_name)),
+           combined, width = 8, height = 10)
+  }
+
+  cat(sprintf("  Saved: %s\n", file.path(out_dir, sprintf("RelativeAbundance_%s.png", factor_name))))
 }
 
 cat("All relative abundance plots generated successfully!\n")
