@@ -24,7 +24,9 @@ rule relative_abundance_plots:
         pop_x_diet_png        = "Outputs/RelativeAbundance_Pop_x_Diet.png",
         pop_x_diet_pdf        = "Outputs/RelativeAbundance_Pop_x_Diet.pdf",
         temp_x_phos_png       = "Outputs/RelativeAbundance_Temp_x_Phosphorus.png",
-        temp_x_phos_pdf       = "Outputs/RelativeAbundance_Temp_x_Phosphorus.pdf"
+        temp_x_phos_pdf       = "Outputs/RelativeAbundance_Temp_x_Phosphorus.pdf",
+        pop_x_diet_x_phos_png = "Outputs/RelativeAbundance_Pop_x_Diet_x_Phosphorus.png",
+        pop_x_diet_x_phos_pdf = "Outputs/RelativeAbundance_Pop_x_Diet_x_Phosphorus.pdf"
     shell:
         """
         Rscript {input.script} \

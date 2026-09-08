@@ -85,9 +85,10 @@ rel_mat$Order  <- merged$Order
 # Add combined interaction columns to metadata
 metadata <- metadata %>%
   mutate(
-    Pop_x_Temp       = paste(Pop,  Temp,       sep = "_"),
-    Pop_x_Diet       = paste(Pop,  Diet,       sep = "_"),
-    Temp_x_Phosphorus = paste(Temp, Phosphorus, sep = "_")
+    Pop_x_Temp            = paste(Pop,  Temp,       sep = "_"),
+    Pop_x_Diet            = paste(Pop,  Diet,       sep = "_"),
+    Temp_x_Phosphorus     = paste(Temp, Phosphorus, sep = "_"),
+    Pop_x_Diet_x_Phosphorus = paste(Pop, Diet, Phosphorus, sep = "_")
   )
 
 make_long <- function(df, rank_col) {
@@ -97,7 +98,8 @@ make_long <- function(df, rank_col) {
     pivot_longer(-all_of(rank_col), names_to = "SampleID", values_to = "RelAbund") %>%
     rename(Taxon = all_of(rank_col)) %>%
     left_join(metadata %>% select(SampleID, Diet, Temp, Phosphorus, Pop,
-                                  Pop_x_Temp, Pop_x_Diet, Temp_x_Phosphorus),
+                                  Pop_x_Temp, Pop_x_Diet,
+                                  Temp_x_Phosphorus, Pop_x_Diet_x_Phosphorus),
               by = "SampleID")
 }
 
@@ -191,13 +193,14 @@ stacked_bar <- function(long_df, x_var, x_lab, fill_lab, palette, n_top = 10) {
 
 # ── Main loop: one figure per experimental factor ─────────────────────────────
 factors <- list(
-  Diet              = list(col = "Diet",              label = "Diet"),
-  Temp              = list(col = "Temp",              label = "Temperature"),
-  Phosphorus        = list(col = "Phosphorus",        label = "Phosphorus"),
-  Pop               = list(col = "Pop",               label = "Population"),
-  Pop_x_Temp        = list(col = "Pop_x_Temp",        label = "Population × Temperature"),
-  Pop_x_Diet        = list(col = "Pop_x_Diet",        label = "Population × Diet"),
-  Temp_x_Phosphorus = list(col = "Temp_x_Phosphorus", label = "Temperature × Phosphorus")
+  Diet                    = list(col = "Diet",                    label = "Diet"),
+  Temp                    = list(col = "Temp",                    label = "Temperature"),
+  Phosphorus              = list(col = "Phosphorus",              label = "Phosphorus"),
+  Pop                     = list(col = "Pop",                     label = "Population"),
+  Pop_x_Temp              = list(col = "Pop_x_Temp",              label = "Population × Temperature"),
+  Pop_x_Diet              = list(col = "Pop_x_Diet",              label = "Population × Diet"),
+  Temp_x_Phosphorus       = list(col = "Temp_x_Phosphorus",       label = "Temperature × Phosphorus"),
+  Pop_x_Diet_x_Phosphorus = list(col = "Pop_x_Diet_x_Phosphorus", label = "Population × Diet × Phosphorus")
 )
 
 for (factor_name in names(factors)) {
