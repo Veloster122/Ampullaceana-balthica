@@ -60,3 +60,24 @@ rule glmm_analysis:
             {input.metadata} \\
             glmm_outputs
         """
+
+
+rule appendix_tables:
+    """Format GLMM outputs into clean appendix tables (B1/B2/B3) and
+    record PCA figure paths (C1/C2). Runs after glmm_analysis."""
+    input:
+        faithpd_summary  = "glmm_outputs/faith_pd_summary_results.txt",
+        observed_summary = "glmm_outputs/observed_features_summary_results.txt",
+        shannon_summary  = "glmm_outputs/shannon_entropy_summary_results.txt",
+        pca_summary      = "glmm_outputs/PCA_Traits_summary.txt",
+        script           = "scripts/appendix_tables_figures.R"
+    output:
+        tbl_b1 = "Outputs/Appendices/Table_B1_GLMM_coefficients.csv",
+        tbl_b2 = "Outputs/Appendices/Table_B2_GLMM_coefficients.csv",
+        tbl_b3 = "Outputs/Appendices/Table_B3_GLMM_coefficients.csv",
+        tbl_c1 = "Outputs/Appendices/Table_C1_PCA_importance.csv"
+    shell:
+        """
+        mkdir -p Outputs/Appendices
+        Rscript {input.script} glmm_outputs/ Outputs/Appendices/
+        """

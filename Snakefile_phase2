@@ -94,4 +94,9 @@ rule all_phase2:
         "Outputs/RelativeAbundance_Pop_x_Temp.png",
         "Outputs/RelativeAbundance_Pop_x_Diet.png",
         "Outputs/RelativeAbundance_Temp_x_Phosphorus.png",
-        "Outputs/RelativeAbundance_Pop_x_Diet_x_Phosphorus.png"
+        "Outputs/RelativeAbundance_Pop_x_Diet_x_Phosphorus.png",
+        # Appendix tables (B1/B2/B3 + C1)
+        "Outputs/Appendices/Table_B1_GLMM_coefficients.csv",
+        "Outputs/Appendices/Table_B2_GLMM_coefficients.csv",
+        "Outputs/Appendices/Table_B3_GLMM_coefficients.csv",
+        "Outputs/Appendices/Table_C1_PCA_importance.csv"
