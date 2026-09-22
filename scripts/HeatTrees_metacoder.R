@@ -71,77 +71,86 @@ obj$data$tax_abund <- calc_taxon_abund(obj, "tax_data", cols = sample_cols)
 obj$data$tax_abund_prop <- calc_obs_props(obj, "tax_abund")
 
 # Custom Heat Tree function
-make_heat_tree <- function(group_col, ref_level, treat_level, file_name) {
-  cat("Generating Heat Tree for", group_col, ":", treat_level, "vs", ref_level, "...\n")
-  
+# treat_label / ref_label: optional display strings for titles/axis (e.g. "20°C")
+# treat_level / ref_level: actual values in the metadata column (e.g. "20")
+make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
+                           ref_label = NULL, treat_label = NULL) {
+
+  # Fall back to metadata values if no display labels provided
+  if (is.null(ref_label))   ref_label   <- ref_level
+  if (is.null(treat_label)) treat_label <- treat_level
+
+  cat("Generating Heat Tree for", group_col, ":", treat_label, "vs", ref_label, "...\n")
+
   # Remove NAs in the group column
   valid_samples <- metadata$SampleID[!is.na(metadata[[group_col]])]
-  
+
   diff_table <- compare_groups(obj, data = "tax_abund_prop",
                                cols = valid_samples,
                                groups = metadata[[group_col]][metadata$SampleID %in% valid_samples])
-  
+
   if ("treatment_1" %in% colnames(diff_table)) {
     diff_table <- diff_table %>% rename(treat1 = treatment_1, treat2 = treatment_2)
   }
-  
-  # Filter diff_table for the specific comparison
+
+  # Filter using actual metadata values (not display labels)
   diff_sub <- diff_table %>%
     filter((treat1 == treat_level & treat2 == ref_level) | (treat1 == ref_level & treat2 == treat_level))
-  
+
   if (nrow(diff_sub) == 0) {
     cat("Warning: No differences found for", file_name, "\n")
     return()
   }
-  
+
   # In newer metacoder versions, the fold change column is called log2_median_ratio
   if (!"log2_fold_change" %in% colnames(diff_sub) && "log2_median_ratio" %in% colnames(diff_sub)) {
     diff_sub <- diff_sub %>% rename(log2_fold_change = log2_median_ratio)
   }
-  
+
   # Adjust sign so treat is always compared to ref
   diff_sub <- diff_sub %>%
     mutate(log2_fold_change = ifelse(treat1 == ref_level, -log2_fold_change, log2_fold_change))
-  
+
   # Add significant filter (Wilcox p < 0.05) to mask non-significant changes
   if ("wilcox_p_value" %in% colnames(diff_sub)) {
     diff_sub <- diff_sub %>%
       mutate(log2_fold_change = ifelse(is.na(wilcox_p_value) | wilcox_p_value >= 0.05, 0, log2_fold_change))
   }
-  
-  # Remove taxa with 0 fold change to clean up tree (optional, keeping for structure)
-  
+
   # Merge back
-  obj$data$diff <- diff_sub 
-  
-  set.seed(50) # For reproducible layout
+  obj$data$diff <- diff_sub
+
+  set.seed(50) # For reproducible layout — update if a different seed was used previously
   p <- heat_tree(obj,
                  node_label = taxon_names,
                  node_size = n_obs,
                  node_color = log2_fold_change,
-                 node_label_size_range = c(0.0035, 0.035), 
+                 node_label_size_range = c(0.0035, 0.035),
                  node_color_range = c("darkolivegreen4", "gray80", "firebrick"),
                  node_color_trans = "linear",
                  node_color_interval = c(-3, 3),
                  edge_color_range = c("darkolivegreen4", "gray80", "firebrick"),
                  node_size_axis_label = "ASVs count",
-                 node_color_axis_label = paste("Log2 FC (", treat_level, " vs ", ref_level, ")", sep=""),
+                 node_color_axis_label = paste0("Log2 FC (", treat_label, " vs ", ref_label, ")"),
                  layout = "fruchterman-reingold") +
-    ggtitle(paste("Heat Tree: ", group_col, " (", treat_level, " vs ", ref_level, ")", sep="")) +
-    labs(subtitle = paste("Vermelho: Mais abundante em", treat_level, "  |  Verde: Mais abundante em", ref_level)) +
-    theme(plot.title = element_text(size = 34, face = "bold", hjust = 0.5, margin = margin(b = 10)),
+    ggtitle(paste0("Heat Tree: ", group_col, " (", treat_label, " vs ", ref_label, ")")) +
+    labs(subtitle = paste("Vermelho: Mais abundante em", treat_label, "  |  Verde: Mais abundante em", ref_label)) +
+    theme(plot.title    = element_text(size = 34, face = "bold",   hjust = 0.5, margin = margin(b = 10)),
           plot.subtitle = element_text(size = 24, face = "italic", hjust = 0.5, margin = margin(b = 20)))
-  
+
   # Save ultra-high resolution PNG
   ggsave(file.path(out_dir, file_name), plot = p, width = 22, height = 22, dpi = 600)
-  
+
   # Save vector PDF (infinite resolution)
   pdf_name <- sub("\\.png$", ".pdf", file_name)
   ggsave(file.path(out_dir, pdf_name), plot = p, width = 22, height = 22, dpi = 600)
 }
 
 # Run trees
-make_heat_tree("Temp", "14", "20", "HeatTree_Temp_20_vs_14.png")
+# treat_label / ref_label control display text; treat_level / ref_level must match metadata exactly
+make_heat_tree("Temp", ref_level = "14", treat_level = "20",
+               file_name = "HeatTree_Temp_20_vs_14.png",
+               ref_label = "14°C", treat_label = "20°C")
 make_heat_tree("Pop", "SE", "PT", "HeatTree_Pop_PT_vs_SE.png")
 make_heat_tree("Phosphorus", "0", "3", "HeatTree_Phosphorus_3_vs_0.png")
 
