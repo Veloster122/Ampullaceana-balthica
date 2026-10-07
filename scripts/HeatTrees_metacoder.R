@@ -217,15 +217,32 @@ run_taxon_glmms <- function() {
     out
   }
 
-  # Progress log (works in parallel too): one line per finished taxon
+  # Robust CSV output written progressively by workers: immune to fork memory crashes
+  results_tsv <- file.path(out_dir, "GLMM_raw_taxa_results.tsv")
+  res_header <- c("taxon_id", "family", "residuals_ok", "dharma_unif_p", "dharma_disp_p", "dharma_zi_p",
+                  paste0(rep(names(terms), each=2), c("_est", "_p")))
+  writeLines(paste(res_header, collapse="\t"), results_tsv)
+
+  # Progress log
   progress_file <- file.path(out_dir, "GLMM_taxa_progress.log")
   cat("", file = progress_file)
-  fit_taxon_logged <- function(i) {
+
+  fit_and_write_taxon <- function(i) {
     out <- tryCatch(fit_taxon(i), error = function(e) NULL)
-    cat(sprintf("%s\t%d\t%s\n", format(Sys.time(), "%H:%M:%S"), i,
-                if (is.null(out) || is.na(out$family)) "skipped" else out$family),
-        file = progress_file, append = TRUE)
-    out
+    
+    if (is.null(out) || is.na(out$family)) {
+      cat(sprintf("%s\t%d\tskipped\n", format(Sys.time(), "%H:%M:%S"), i),
+          file = progress_file, append = TRUE)
+      # Still write empty row to ensure all taxa are represented
+      empty_row <- c(counts$taxon_id[i], rep("NA", length(res_header) - 1))
+      cat(paste(empty_row, collapse="\t"), "\n", file = results_tsv, append = TRUE)
+    } else {
+      cat(sprintf("%s\t%d\t%s\n", format(Sys.time(), "%H:%M:%S"), i, out$family),
+          file = progress_file, append = TRUE)
+      row_vals <- sapply(res_header, function(col) if (is.null(out[[col]])) "NA" else as.character(out[[col]]))
+      cat(paste(row_vals, collapse="\t"), "\n", file = results_tsv, append = TRUE)
+    }
+    NULL
   }
 
   n_modelled <- sum(rowSums(as.matrix(counts[, sample_cols]) > 0) >= min_prev)
@@ -234,17 +251,18 @@ run_taxon_glmms <- function() {
   cat("Follow progress with:  wc -l", progress_file, "\n")
   idx <- seq_len(nrow(counts))
 
-  # Use chunking or robust mclapply to prevent fork memory exhaustion
-  res_list <- if (n_cores > 1 && .Platform$OS.type == "unix") {
-    parallel::mclapply(idx, fit_taxon_logged, mc.cores = n_cores, mc.preschedule = TRUE)
+  # Run safely in parallel (returns NULL to save 100% of RAM)
+  if (n_cores > 1 && .Platform$OS.type == "unix") {
+    parallel::mclapply(idx, fit_and_write_taxon, mc.cores = n_cores, mc.preschedule = FALSE)
   } else {
-    lapply(idx, function(i) { if (i %% 50 == 0) cat("  ", i, "/", length(idx), "\n"); fit_taxon_logged(i) })
+    lapply(idx, function(i) { if (i %% 50 == 0) cat("  ", i, "/", length(idx), "\n"); fit_and_write_taxon(i) })
   }
 
-  cat("\nAggregating results across all taxa...\n")
-  # Remove nulls or errors if any worker had an issue
-  valid_res <- Filter(function(x) is.data.frame(x) && nrow(x) > 0, res_list)
-  res <- bind_rows(valid_res)
+  cat("\nAggregating results from disk...\n")
+  res <- read_tsv(results_tsv, show_col_types = FALSE)
+
+  # Deduplicate in case of parallel writes
+  res <- res %>% distinct(taxon_id, .keep_all = TRUE)
 
   # Taxon names / ranks for the output tables
   cat("Extracting taxonomy annotations...\n")
@@ -252,6 +270,13 @@ run_taxon_glmms <- function() {
   t_ranks <- obj$taxon_ranks()
   res$taxon_name <- t_names[as.character(res$taxon_id)]
   res$taxon_rank <- t_ranks[as.character(res$taxon_id)]
+
+  # Convert columns to numeric
+  num_cols <- c("dharma_unif_p", "dharma_disp_p", "dharma_zi_p",
+                paste0(rep(names(terms), each=2), c("_est", "_p")))
+  for (col in num_cols) {
+    res[[col]] <- as.numeric(res[[col]])
+  }
 
   # Log2 FC and BH-FDR per comparison
   for (v in names(comparisons)) {
