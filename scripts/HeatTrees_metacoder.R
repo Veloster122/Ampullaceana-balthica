@@ -221,41 +221,48 @@ run_taxon_glmms <- function() {
   results_tsv <- file.path(out_dir, "GLMM_raw_taxa_results.tsv")
   res_header <- c("taxon_id", "family", "residuals_ok", "dharma_unif_p", "dharma_disp_p", "dharma_zi_p",
                   paste0(rep(names(terms), each=2), c("_est", "_p")))
-  writeLines(paste(res_header, collapse="\t"), results_tsv)
 
-  # Progress log
-  progress_file <- file.path(out_dir, "GLMM_taxa_progress.log")
-  cat("", file = progress_file)
+  # Check if models were already computed in a previous run (smart resume)
+  already_computed <- file.exists(results_tsv) && length(readLines(results_tsv, warn = FALSE)) >= nrow(counts)
 
-  fit_and_write_taxon <- function(i) {
-    out <- tryCatch(fit_taxon(i), error = function(e) NULL)
-    
-    if (is.null(out) || is.na(out$family)) {
-      cat(sprintf("%s\t%d\tskipped\n", format(Sys.time(), "%H:%M:%S"), i),
-          file = progress_file, append = TRUE)
-      # Still write empty row to ensure all taxa are represented
-      empty_row <- c(counts$taxon_id[i], rep("NA", length(res_header) - 1))
-      cat(paste(empty_row, collapse="\t"), "\n", file = results_tsv, append = TRUE)
-    } else {
-      cat(sprintf("%s\t%d\t%s\n", format(Sys.time(), "%H:%M:%S"), i, out$family),
-          file = progress_file, append = TRUE)
-      row_vals <- sapply(res_header, function(col) if (is.null(out[[col]])) "NA" else as.character(out[[col]]))
-      cat(paste(row_vals, collapse="\t"), "\n", file = results_tsv, append = TRUE)
-    }
-    NULL
-  }
-
-  n_modelled <- sum(rowSums(as.matrix(counts[, sample_cols]) > 0) >= min_prev)
-  cat("Fitting per-taxon GLMMs for", nrow(counts), "taxa;", n_modelled,
-      "pass the prevalence filter (>=", min_prev, "samples) ...\n")
-  cat("Follow progress with:  wc -l", progress_file, "\n")
-  idx <- seq_len(nrow(counts))
-
-  # Run safely in parallel (returns NULL to save 100% of RAM)
-  if (n_cores > 1 && .Platform$OS.type == "unix") {
-    parallel::mclapply(idx, fit_and_write_taxon, mc.cores = n_cores, mc.preschedule = FALSE)
+  if (already_computed) {
+    cat("Found existing complete GLMM results at:", results_tsv, "\n")
+    cat("Skipping recalculation and proceeding directly to aggregation and Heat Trees!\n")
   } else {
-    lapply(idx, function(i) { if (i %% 50 == 0) cat("  ", i, "/", length(idx), "\n"); fit_and_write_taxon(i) })
+    writeLines(paste(res_header, collapse="\t"), results_tsv)
+
+    # Progress log
+    progress_file <- file.path(out_dir, "GLMM_taxa_progress.log")
+    cat("", file = progress_file)
+
+    fit_and_write_taxon <- function(i) {
+      out <- tryCatch(fit_taxon(i), error = function(e) NULL)
+      
+      if (is.null(out) || is.na(out$family)) {
+        cat(sprintf("%s\t%d\tskipped\n", format(Sys.time(), "%H:%M:%S"), i),
+            file = progress_file, append = TRUE)
+        empty_row <- c(counts$taxon_id[i], rep("NA", length(res_header) - 1))
+        cat(paste(empty_row, collapse="\t"), "\n", file = results_tsv, append = TRUE)
+      } else {
+        cat(sprintf("%s\t%d\t%s\n", format(Sys.time(), "%H:%M:%S"), i, out$family),
+            file = progress_file, append = TRUE)
+        row_vals <- sapply(res_header, function(col) if (is.null(out[[col]])) "NA" else as.character(out[[col]]))
+        cat(paste(row_vals, collapse="\t"), "\n", file = results_tsv, append = TRUE)
+      }
+      NULL
+    }
+
+    n_modelled <- sum(rowSums(as.matrix(counts[, sample_cols]) > 0) >= min_prev)
+    cat("Fitting per-taxon GLMMs for", nrow(counts), "taxa;", n_modelled,
+        "pass the prevalence filter (>=", min_prev, "samples) ...\n")
+    cat("Follow progress with:  wc -l", progress_file, "\n")
+    idx <- seq_len(nrow(counts))
+
+    if (n_cores > 1 && .Platform$OS.type == "unix") {
+      parallel::mclapply(idx, fit_and_write_taxon, mc.cores = n_cores, mc.preschedule = FALSE)
+    } else {
+      lapply(idx, function(i) { if (i %% 50 == 0) cat("  ", i, "/", length(idx), "\n"); fit_and_write_taxon(i) })
+    }
   }
 
   cat("\nAggregating results from disk...\n")
