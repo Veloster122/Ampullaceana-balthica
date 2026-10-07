@@ -330,11 +330,19 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
   cat("Generating Heat Tree for", group_col, ":", treat_label, "vs", ref_label, "...\n")
 
   if (method == "glmm") {
-    # Significant (FDR < 0.05) GLMM log2 fold changes; everything else grey (0)
-    diff_sub <- data.frame(taxon_id = glmm_res$taxon_id,
-                           log2_fold_change = glmm_res[[paste0(group_col, "_log2FC")]],
-                           p_adj = glmm_res[[paste0(group_col, "_p_adj")]])
-    diff_sub$log2_fold_change[is.na(diff_sub$p_adj) | diff_sub$p_adj >= 0.05] <- 0
+    # Ensure all taxa in the tree have a value (0 = no difference / not significant)
+    all_taxa <- taxon_ids(obj)
+    match_idx <- match(all_taxa, as.character(glmm_res$taxon_id))
+    fc_vals <- glmm_res[[paste0(group_col, "_log2FC")]][match_idx]
+    p_vals  <- glmm_res[[paste0(group_col, "_p_adj")]][match_idx]
+    
+    # Non-significant, missing or unmodelled taxa get FC = 0 (grey color)
+    fc_vals[is.na(p_vals) | p_vals >= 0.05 | is.na(fc_vals)] <- 0
+    
+    diff_sub <- data.frame(taxon_id = all_taxa,
+                           log2_fold_change = fc_vals,
+                           p_adj = ifelse(is.na(p_vals), 1, p_vals),
+                           stringsAsFactors = FALSE)
     test_label <- "GLMM, FDR < 0.05"
   } else {
     # Remove NAs in the group column
