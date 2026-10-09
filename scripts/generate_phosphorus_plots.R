@@ -102,6 +102,18 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
   cat("Calculating Estimated Marginal Means (emmeans)...\n")
   emm <- as.data.frame(emmeans(model, ~ Temp * Diet * Pop * Phosphorus, type = "response"))
   
+  # Standardize confidence limit column names (asymp.LCL vs lower.CL)
+  if ("asymp.LCL" %in% colnames(emm)) {
+    emm$ymin <- emm$asymp.LCL
+    emm$ymax <- emm$asymp.UCL
+  } else if ("lower.CL" %in% colnames(emm)) {
+    emm$ymin <- emm$lower.CL
+    emm$ymax <- emm$upper.CL
+  } else {
+    emm$ymin <- emm$emmean - 1.96 * emm$SE
+    emm$ymax <- emm$emmean + 1.96 * emm$SE
+  }
+  
   emm$Temp <- factor(emm$Temp)
   emm$Diet <- factor(emm$Diet, levels = c("A", "M", "P"))
   emm$Pop  <- factor(emm$Pop)
@@ -114,7 +126,7 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
   dodge_line <- position_dodge(width = 0.6)
   p_line <- ggplot(emm, aes(x = Temp, y = emmean, color = Diet, linetype = Phosphorus, shape = Phosphorus,
                            group = interaction(Diet, Phosphorus))) +
-    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_line, linewidth = 0.8) +
+    geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.3, position = dodge_line, linewidth = 0.8) +
     geom_line(position = dodge_line, linewidth = 1) +
     geom_point(position = dodge_line, size = 3) +
     scale_color_manual(name = "Diet", values = diet_colors) +
@@ -136,7 +148,7 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
   cat("  -> Saving Alternativa 2A (Grid 2x2)...\n")
   dodge_grid <- position_dodge(width = 0.5)
   p_grid <- ggplot(emm, aes(x = Temp, y = emmean, color = Diet, group = Diet)) +
-    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_grid, linewidth = 0.8) +
+    geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.3, position = dodge_grid, linewidth = 0.8) +
     geom_line(position = dodge_grid, linewidth = 1) +
     geom_point(position = dodge_grid, size = 3) +
     scale_color_manual(name = "Diet", values = diet_colors) +
@@ -155,7 +167,7 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
   for (p_lvl in c("0", "3")) {
     sub_emm <- emm %>% filter(Phosphorus == p_lvl)
     p_single <- ggplot(sub_emm, aes(x = Temp, y = emmean, color = Diet, group = Diet)) +
-      geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_grid, linewidth = 0.8) +
+      geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.3, position = dodge_grid, linewidth = 0.8) +
       geom_line(position = dodge_grid, linewidth = 1) +
       geom_point(position = dodge_grid, size = 3) +
       scale_color_manual(name = "Diet", values = diet_colors) +
