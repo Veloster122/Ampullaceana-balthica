@@ -164,6 +164,86 @@ create_cat_plot <- function(model, pred_var, modx_var, mod2_var, ylab, metric_na
   
   ggsave(filename = png_path, plot = p, width = 10, height = 7, dpi=300)
 }
+
+# ---- Phosphorus Interaction Plots (using emmeans) ----
+plot_phosphorus_interactions <- function(model, ylab_name, metric_col, out_dir) {
+  # 1. Compute Estimated Marginal Means across the 4 factors
+  emm <- tryCatch(
+    as.data.frame(emmeans::emmeans(model, ~ Temp * Diet * Pop * Phosphorus, type = "response")),
+    error = function(e) NULL
+  )
+  if (is.null(emm)) return()
+  
+  emm$Temp <- factor(emm$Temp)
+  emm$Diet <- factor(emm$Diet, levels = c("A", "M", "P"))
+  emm$Pop  <- factor(emm$Pop)
+  emm$Phosphorus <- factor(emm$Phosphorus, levels = c("0", "3"))
+  
+  diet_colors <- c("A" = "#740000", "M" = "#DAA520", "P" = "#4F734E")
+  
+  clean_theme <- theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black"),
+      strip.background = element_blank(),
+      strip.text = element_text(face = "italic", size = 12),
+      legend.position = "right"
+    )
+  
+  # Alternativa 1: Linetype para Fósforo (0 = solid, 3 = dashed)
+  dodge_line <- position_dodge(width = 0.6)
+  p_line <- ggplot(emm, aes(x = Temp, y = emmean, color = Diet, linetype = Phosphorus, shape = Phosphorus,
+                           group = interaction(Diet, Phosphorus))) +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_line, linewidth = 0.8) +
+    geom_line(position = dodge_line, linewidth = 1) +
+    geom_point(position = dodge_line, size = 3) +
+    scale_color_manual(name = "Diet", values = diet_colors) +
+    scale_linetype_manual(name = "Phosphorus", values = c("0" = "solid", "3" = "dashed"),
+                          labels = c("0" = "0 (P0)", "3" = "3 (P3)")) +
+    scale_shape_manual(name = "Phosphorus", values = c("0" = 16, "3" = 17),
+                       labels = c("0" = "0 (P0)", "3" = "3 (P3)")) +
+    ylab(ylab_name) +
+    xlab("Temp") +
+    facet_wrap(~ Pop, labeller = ggplot2::label_both) +
+    clean_theme
+  
+  ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop_Phosphorus_linetype.png")),
+         plot = p_line, width = 10, height = 7, dpi = 300)
+  
+  # Alternativa 2A: Grelha duplicada 2x2 (Linhas = Phosphorus, Colunas = Pop)
+  dodge_grid <- position_dodge(width = 0.5)
+  p_grid <- ggplot(emm, aes(x = Temp, y = emmean, color = Diet, group = Diet)) +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_grid, linewidth = 0.8) +
+    geom_line(position = dodge_grid, linewidth = 1) +
+    geom_point(position = dodge_grid, size = 3) +
+    scale_color_manual(name = "Diet", values = diet_colors) +
+    ylab(ylab_name) +
+    xlab("Temp") +
+    facet_grid(Phosphorus ~ Pop, labeller = ggplot2::label_both) +
+    clean_theme
+  
+  ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop_Phosphorus_grid.png")),
+         plot = p_grid, width = 10, height = 9, dpi = 300)
+  
+  # Alternativa 2B: Duas figuras separadas (uma para P0 e outra para P3)
+  for (p_lvl in c("0", "3")) {
+    sub_emm <- emm %>% filter(Phosphorus == p_lvl)
+    p_single <- ggplot(sub_emm, aes(x = Temp, y = emmean, color = Diet, group = Diet)) +
+      geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.3, position = dodge_grid, linewidth = 0.8) +
+      geom_line(position = dodge_grid, linewidth = 1) +
+      geom_point(position = dodge_grid, size = 3) +
+      scale_color_manual(name = "Diet", values = diet_colors) +
+      ylab(ylab_name) +
+      xlab("Temp") +
+      ggtitle(paste0("Phosphorus = ", p_lvl)) +
+      facet_wrap(~ Pop, labeller = ggplot2::label_both) +
+      clean_theme
+    
+    ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop_P", p_lvl, ".png")),
+           plot = p_single, width = 10, height = 7, dpi = 300)
+  }
+}
 # ---- Core Runner ----
 run_analysis <- function(metric_col, ylab_name) {
   print(paste("Running GLMM for", metric_col))
@@ -226,6 +306,9 @@ run_analysis <- function(metric_col, ylab_name) {
   # Temp vs Pop separated by Diet
   png2_path <- file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop.png"))
   create_cat_plot(best_model, "Temp", "Diet", "Pop", ylab_name, metric_col, sub_df, png2_path)
+  
+  # Phosphorus Interaction Plots (Linetype, 2x2 Grid, Separate P0 & P3)
+  plot_phosphorus_interactions(best_model, ylab_name, metric_col, out_dir)
   
   print(paste("Done for", metric_col))
 }
