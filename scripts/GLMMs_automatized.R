@@ -110,8 +110,8 @@ meta_to_use <- if (file.exists(binned_meta_path)) {
 pca_data <- data.frame(SampleID = df$SampleID, PC1 = pca_res$x[, 1], PC2 = pca_res$x[, 2])
 pca_data <- merge(pca_data, meta_to_use, by.x="SampleID", by.y=names(meta_to_use)[1], all.x=TRUE)
 
-# Ensure experimental factors are treated as discrete factors (not continuous numbers)
-for (col in c("Temp", "Diet", "Phosphorus", "Pop", "Box")) {
+# Treat two-level experimental factors as discrete (Box keeps its original numeric gradient)
+for (col in c("Temp", "Diet", "Phosphorus", "Pop")) {
   if (col %in% colnames(pca_data)) {
     pca_data[[col]] <- as.factor(pca_data[[col]])
   }
@@ -129,10 +129,8 @@ pc1_label <- paste0("PC1 (", pc1_var, "%)")
 pc2_label <- paste0("PC2 (", pc2_var, "%)")
 
 generate_pca_biplot <- function(color_col) {
-  pca_data[[color_col]] <- as.factor(pca_data[[color_col]])
-  
   pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2)) +
-    geom_point(aes_string(color = color_col), alpha = 0.85, size = 3.2) +
+    geom_point(aes_string(color = color_col), alpha = 0.8, size = 3) +
     geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1 * mult, yend = PC2 * mult), 
                  arrow = arrow(length = unit(0.2, "cm")), color = "black", linewidth = 1) +
     geom_text(data = loadings, aes(x = PC1 * mult * 1.15, y = PC2 * mult * 1.15, label = var), 
@@ -140,10 +138,9 @@ generate_pca_biplot <- function(color_col) {
     theme_bw() +
     labs(title = paste("PCA Biplot of Morphological Traits by", color_col), 
          x = pc1_label, y = pc2_label, color = color_col) +
-    theme(panel.grid.minor = element_blank(),
-          legend.position = "right")
+    theme(panel.grid.minor = element_blank())
   
-  # Custom discrete color scales with clear two-value labels
+  # Discrete legends only for the two-level treatments; Box, Diet and Pop keep the original colours
   if (color_col == "Temp") {
     pca_plot <- pca_plot + scale_color_manual(
       name = "Temperature",
@@ -155,16 +152,6 @@ generate_pca_biplot <- function(color_col) {
       name = "Phosphorus",
       values = c("0" = "grey50", "3" = "#9400D3"),
       labels = c("0" = "0 (P0)", "3" = "3 (P3)")
-    )
-  } else if (color_col == "Diet") {
-    pca_plot <- pca_plot + scale_color_manual(
-      name = "Diet",
-      values = c("A" = "#F8766D", "M" = "#00BA38", "P" = "#619CFF")
-    )
-  } else if (color_col == "Pop") {
-    pca_plot <- pca_plot + scale_color_manual(
-      name = "Population",
-      values = c("PT" = "#E69F00", "SE" = "#0072B2")
     )
   }
   
