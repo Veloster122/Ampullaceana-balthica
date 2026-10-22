@@ -48,67 +48,134 @@ df <- df %>%
     Pop = as.factor(Pop),
     Box = as.factor(Box)
   )
-# ---- PCA for Morphological Traits ----
-pca_vars <- unique(c("Ini_weight", "Shell_IL", "Shell_IAA", "N_clutches_per day", "Av_stick_height", "Fin_weight", "Growth_rate", "Shell_FL", "Shell_FAA"))
+# ---- PCA for Morphological Traits (Combined Initial & Final Dimensions) ----
+ini_vars <- c("Ini_weight", "Shell_IL", "Shell_IAA")
+fin_vars <- c("Fin_weight", "Shell_FL", "Shell_FAA")
+other_vars <- c("N_clutches_per day", "Av_stick_height", "Growth_rate")
 
-for (var in pca_vars) {
+all_morpho_vars <- unique(c(ini_vars, fin_vars, other_vars))
+for (var in all_morpho_vars) {
   df[[var]] <- as.numeric(df[[var]])
   df[[var]][is.na(df[[var]])] <- mean(df[[var]], na.rm = TRUE) # Impute NAs to prevent PCA failure
 }
 
+# 1. PCA das Dimensões Iniciais -> Vetor 'Initial_Size' (PC1)
+pca_ini <- prcomp(df[, ini_vars], center = TRUE, scale. = TRUE)
+df$Initial_Size <- pca_ini$x[, 1]
+if (cor(df$Initial_Size, df$Ini_weight) < 0) df$Initial_Size <- -df$Initial_Size
+
+# 2. PCA das Dimensões Finais -> Vetor 'Final_Size' (PC1)
+pca_fin <- prcomp(df[, fin_vars], center = TRUE, scale. = TRUE)
+df$Final_Size <- pca_fin$x[, 1]
+if (cor(df$Final_Size, df$Fin_weight) < 0) df$Final_Size <- -df$Final_Size
+
+# 3. PCA Global com variáveis não-redundantes
+pca_vars <- c("Initial_Size", "Final_Size", other_vars)
 pca_res <- prcomp(df[, pca_vars], center = TRUE, scale. = TRUE)
+
 df$Size_PC1 <- pca_res$x[, 1] # Keep variable name for downstream GLMMs compatibility
+df$Size_Ini_PC1 <- df$Initial_Size
+df$Size_Fin_PC1 <- df$Final_Size
 
 # Save PCA summary to file
 pca_log <- file.path(out_dir, "PCA_Traits_summary.txt")
 sink(pca_log)
-cat("=== PCA Summary for Morphological Traits ===\n")
+cat("=== PCA Summary for Initial Size (Ini_weight, Shell_IL, Shell_IAA) ===\n")
+print(summary(pca_ini))
+cat("\nLoadings:\n")
+print(pca_ini$rotation)
+
+cat("\n=== PCA Summary for Final Size (Fin_weight, Shell_FL, Shell_FAA) ===\n")
+print(summary(pca_fin))
+cat("\nLoadings:\n")
+print(pca_fin$rotation)
+
+cat("\n=== Global PCA Summary for Non-Redundant Morphological Traits ===\n")
 cat("Variables included:", paste(pca_vars, collapse=", "), "\n\n")
 print(summary(pca_res))
 cat("\n=== PCA Loadings (Eigenvectors) ===\n")
 print(pca_res$rotation)
 sink()
 
-# Save PCA biplots (Advanced ggplot2 version using Binned Metadata)
+# Save PCA biplots (Advanced ggplot2 version using Binned Metadata or standard Metadata)
 binned_meta_path <- file.path(dirname(metadata_file), "Ampullaceana_balthica_metadata_binned.tsv")
-if (file.exists(binned_meta_path)) {
-  binned_df <- read.table(binned_meta_path, sep="\t", header=TRUE, check.names=FALSE)
-  if (binned_df[1,1] == "#q2:types") binned_df <- binned_df[-1,]
+meta_to_use <- if (file.exists(binned_meta_path)) {
+  b_df <- read.table(binned_meta_path, sep="\t", header=TRUE, check.names=FALSE)
+  if (b_df[1,1] == "#q2:types") b_df <- b_df[-1,]
+  b_df
+} else {
+  metadata
+}
+
+pca_data <- data.frame(SampleID = df$SampleID, PC1 = pca_res$x[, 1], PC2 = pca_res$x[, 2])
+pca_data <- merge(pca_data, meta_to_use, by.x="SampleID", by.y=names(meta_to_use)[1], all.x=TRUE)
+
+# Ensure experimental factors are treated as discrete factors (not continuous numbers)
+for (col in c("Temp", "Diet", "Phosphorus", "Pop", "Box")) {
+  if (col %in% colnames(pca_data)) {
+    pca_data[[col]] <- as.factor(pca_data[[col]])
+  }
+}
+
+loadings <- as.data.frame(pca_res$rotation)
+loadings$var <- rownames(loadings)
+# Scale arrows to fit plot
+mult <- min(max(pca_data$PC1, na.rm=T)/max(abs(loadings$PC1)), max(pca_data$PC2, na.rm=T)/max(abs(loadings$PC2))) * 0.8
+
+# Calculate variance percentages for axes
+pc1_var <- round(100 * pca_res$sdev[1]^2 / sum(pca_res$sdev^2), 1)
+pc2_var <- round(100 * pca_res$sdev[2]^2 / sum(pca_res$sdev^2), 1)
+pc1_label <- paste0("PC1 (", pc1_var, "%)")
+pc2_label <- paste0("PC2 (", pc2_var, "%)")
+
+generate_pca_biplot <- function(color_col) {
+  pca_data[[color_col]] <- as.factor(pca_data[[color_col]])
   
-  pca_data <- data.frame(SampleID = df$SampleID, PC1 = pca_res$x[, 1], PC2 = pca_res$x[, 2])
-  pca_data <- merge(pca_data, binned_df, by.x="SampleID", by.y=names(binned_df)[1], all.x=TRUE)
+  pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2)) +
+    geom_point(aes_string(color = color_col), alpha = 0.85, size = 3.2) +
+    geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1 * mult, yend = PC2 * mult), 
+                 arrow = arrow(length = unit(0.2, "cm")), color = "black", linewidth = 1) +
+    geom_text(data = loadings, aes(x = PC1 * mult * 1.15, y = PC2 * mult * 1.15, label = var), 
+              color = "darkred", size = 4, fontface="bold") +
+    theme_bw() +
+    labs(title = paste("PCA Biplot of Morphological Traits by", color_col), 
+         x = pc1_label, y = pc2_label, color = color_col) +
+    theme(panel.grid.minor = element_blank(),
+          legend.position = "right")
   
-  loadings <- as.data.frame(pca_res$rotation)
-  loadings$var <- rownames(loadings)
-  # Scale arrows to fit plot
-  mult <- min(max(pca_data$PC1, na.rm=T)/max(abs(loadings$PC1)), max(pca_data$PC2, na.rm=T)/max(abs(loadings$PC2))) * 0.8
-  
-  # Calculate variance percentages for axes
-  pc1_var <- round(100 * pca_res$sdev[1]^2 / sum(pca_res$sdev^2), 1)
-  pc2_var <- round(100 * pca_res$sdev[2]^2 / sum(pca_res$sdev^2), 1)
-  pc1_label <- paste0("PC1 (", pc1_var, "%)")
-  pc2_label <- paste0("PC2 (", pc2_var, "%)")
-  
-  generate_pca_biplot <- function(color_col) {
-    pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2)) +
-      geom_point(aes_string(color = color_col), alpha = 0.8, size = 3) +
-      geom_segment(data = loadings, aes(x = 0, y = 0, xend = PC1 * mult, yend = PC2 * mult), 
-                   arrow = arrow(length = unit(0.2, "cm")), color = "black", linewidth = 1) +
-      geom_text(data = loadings, aes(x = PC1 * mult * 1.15, y = PC2 * mult * 1.15, label = var), 
-                color = "darkred", size = 4, fontface="bold") +
-      theme_bw() +
-      labs(title = paste("PCA Biplot of Morphological Traits by", color_col), x = pc1_label, y = pc2_label, color = color_col) +
-      theme(panel.grid.minor = element_blank())
-    
-    ggsave(file.path(out_dir, paste0("PCA_Traits_biplot_", color_col, ".png")), plot = pca_plot, width = 8, height = 6, dpi = 300)
+  # Custom discrete color scales with clear two-value labels
+  if (color_col == "Temp") {
+    pca_plot <- pca_plot + scale_color_manual(
+      name = "Temperature",
+      values = c("14" = "#2B6CB0", "20" = "#D9534F"),
+      labels = c("14" = "14°C", "20" = "20°C")
+    )
+  } else if (color_col == "Phosphorus") {
+    pca_plot <- pca_plot + scale_color_manual(
+      name = "Phosphorus",
+      values = c("0" = "grey50", "3" = "#9400D3"),
+      labels = c("0" = "0 (P0)", "3" = "3 (P3)")
+    )
+  } else if (color_col == "Diet") {
+    pca_plot <- pca_plot + scale_color_manual(
+      name = "Diet",
+      values = c("A" = "#F8766D", "M" = "#00BA38", "P" = "#619CFF")
+    )
+  } else if (color_col == "Pop") {
+    pca_plot <- pca_plot + scale_color_manual(
+      name = "Population",
+      values = c("PT" = "#E69F00", "SE" = "#0072B2")
+    )
   }
   
-  generate_pca_biplot("Box")
-  generate_pca_biplot("Temp")
-  generate_pca_biplot("Diet")
-  generate_pca_biplot("Phosphorus")
-  generate_pca_biplot("Pop")
+  ggsave(file.path(out_dir, paste0("PCA_Traits_biplot_", color_col, ".png")), plot = pca_plot, width = 8, height = 6, dpi = 300)
 }
+
+generate_pca_biplot("Box")
+generate_pca_biplot("Temp")
+generate_pca_biplot("Diet")
+generate_pca_biplot("Phosphorus")
+generate_pca_biplot("Pop")
 # ---- Helper Functions ----
 main_effects1 <- function(model, a, metric_name, log_file) {
   fml <- reformulate(a)

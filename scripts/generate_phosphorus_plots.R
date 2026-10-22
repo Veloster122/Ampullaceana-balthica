@@ -62,17 +62,32 @@ df <- df %>%
     Box = as.factor(Box)
   )
 
-# Calculate Size_PC1 if morphological variables exist
-pca_vars <- unique(c("Ini_weight", "Shell_IL", "Shell_IAA", "N_clutches_per day", 
-                     "Av_stick_height", "Fin_weight", "Growth_rate", "Shell_FL", "Shell_FAA"))
-existing_vars <- intersect(pca_vars, colnames(df))
+# Calculate Initial_Size and Final_Size vectors via PCA
+ini_vars <- c("Ini_weight", "Shell_IL", "Shell_IAA")
+fin_vars <- c("Fin_weight", "Shell_FL", "Shell_FAA")
+other_vars <- c("N_clutches_per day", "Av_stick_height", "Growth_rate")
+all_morpho_vars <- intersect(unique(c(ini_vars, fin_vars, other_vars)), colnames(df))
 
-if (length(existing_vars) >= 2) {
-  for (var in existing_vars) {
+if (length(all_morpho_vars) >= 2) {
+  for (var in all_morpho_vars) {
     df[[var]] <- as.numeric(df[[var]])
     df[[var]][is.na(df[[var]])] <- mean(df[[var]], na.rm = TRUE)
   }
-  pca_res <- prcomp(df[, existing_vars], center = TRUE, scale. = TRUE)
+  
+  if (all(ini_vars %in% colnames(df))) {
+    pca_ini <- prcomp(df[, ini_vars], center = TRUE, scale. = TRUE)
+    df$Initial_Size <- pca_ini$x[, 1]
+    if (cor(df$Initial_Size, df$Ini_weight) < 0) df$Initial_Size <- -df$Initial_Size
+  }
+  
+  if (all(fin_vars %in% colnames(df))) {
+    pca_fin <- prcomp(df[, fin_vars], center = TRUE, scale. = TRUE)
+    df$Final_Size <- pca_fin$x[, 1]
+    if (cor(df$Final_Size, df$Fin_weight) < 0) df$Final_Size <- -df$Final_Size
+  }
+  
+  pca_vars <- intersect(c("Initial_Size", "Final_Size", other_vars), colnames(df))
+  pca_res <- prcomp(df[, pca_vars], center = TRUE, scale. = TRUE)
   df$Size_PC1 <- pca_res$x[, 1]
   formula_rhs <- "Pop * Temp * Diet * Phosphorus + Size_PC1 + (1|Box)"
 } else {
