@@ -88,7 +88,7 @@ if (length(all_morpho_vars) >= 2) {
   
   pca_vars <- intersect(c("Initial_Size", "Final_Size", other_vars), colnames(df))
   pca_res <- prcomp(df[, pca_vars], center = TRUE, scale. = TRUE)
-  df$Size_PC1 <- pca_res$x[, 1]
+  df$Size_PC1 <- df$Initial_Size # Covariável dos GLMMs: Tamanho Inicial (pré-tratamento)
   formula_rhs <- "Pop * Temp * Diet * Phosphorus + Size_PC1 + (1|Box)"
 } else {
   formula_rhs <- "Pop * Temp * Diet * Phosphorus + (1|Box)"

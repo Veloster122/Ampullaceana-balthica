@@ -73,7 +73,7 @@ if (cor(df$Final_Size, df$Fin_weight) < 0) df$Final_Size <- -df$Final_Size
 pca_vars <- c("Initial_Size", "Final_Size", other_vars)
 pca_res <- prcomp(df[, pca_vars], center = TRUE, scale. = TRUE)
 
-df$Size_PC1 <- pca_res$x[, 1] # Keep variable name for downstream GLMMs compatibility
+df$Size_PC1 <- df$Initial_Size # Covariável dos GLMMs: Tamanho Inicial (pré-tratamento)
 df$Size_Ini_PC1 <- df$Initial_Size
 df$Size_Fin_PC1 <- df$Final_Size
 
