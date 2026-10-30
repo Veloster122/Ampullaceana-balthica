@@ -51,7 +51,7 @@ df <- df %>%
 # ---- PCA for Morphological Traits (Combined Initial & Final Dimensions) ----
 ini_vars <- c("Ini_weight", "Shell_IL", "Shell_IAA")
 fin_vars <- c("Fin_weight", "Shell_FL", "Shell_FAA")
-other_vars <- c("N_clutches_per day", "Av_stick_height", "Growth_rate")
+other_vars <- c("N_clutches_per day", "Cons_rate", "Growth_rate")
 
 all_morpho_vars <- unique(c(ini_vars, fin_vars, other_vars))
 for (var in all_morpho_vars) {

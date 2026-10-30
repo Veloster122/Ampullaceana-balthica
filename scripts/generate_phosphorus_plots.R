@@ -65,7 +65,7 @@ df <- df %>%
 # Calculate Initial_Size and Final_Size vectors via PCA
 ini_vars <- c("Ini_weight", "Shell_IL", "Shell_IAA")
 fin_vars <- c("Fin_weight", "Shell_FL", "Shell_FAA")
-other_vars <- c("N_clutches_per day", "Av_stick_height", "Growth_rate")
+other_vars <- c("N_clutches_per day", "Cons_rate", "Growth_rate")
 all_morpho_vars <- intersect(unique(c(ini_vars, fin_vars, other_vars)), colnames(df))
 
 if (length(all_morpho_vars) >= 2) {

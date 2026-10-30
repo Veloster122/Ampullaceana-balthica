@@ -345,12 +345,12 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
                            stringsAsFactors = FALSE)
     test_label <- "GLMM, FDR < 0.05"
   } else {
-    # Remove NAs in the group column
-    valid_samples <- metadata$SampleID[!is.na(metadata[[group_col]])]
+    # Remove NAs in the group column and subset only to the two levels being compared
+    valid_samples <- metadata$SampleID[!is.na(metadata[[group_col]]) & metadata[[group_col]] %in% c(ref_level, treat_level)]
 
     diff_table <- compare_groups(obj, data = "tax_abund_prop",
                                  cols = valid_samples,
-                                 groups = metadata[[group_col]][metadata$SampleID %in% valid_samples])
+                                 groups = metadata[[group_col]][match(valid_samples, metadata$SampleID)])
 
     if ("treatment_1" %in% colnames(diff_table)) {
       diff_table <- diff_table %>% rename(treat1 = treatment_1, treat2 = treatment_2)
@@ -377,8 +377,21 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
     # Add significant filter (Wilcox p < 0.05) to mask non-significant changes
     if ("wilcox_p_value" %in% colnames(diff_sub)) {
       diff_sub <- diff_sub %>%
-        mutate(log2_fold_change = ifelse(is.na(wilcox_p_value) | wilcox_p_value >= 0.05, 0, log2_fold_change))
+        mutate(log2_fold_change = ifelse(is.na(wilcox_p_value) | wilcox_p_value >= 0.05 | is.na(log2_fold_change), 0, log2_fold_change))
     }
+
+    # Ensure all taxa in the tree have a non-NA value to prevent heat_tree() crash
+    all_taxa <- taxon_ids(obj)
+    match_idx <- match(all_taxa, as.character(diff_sub$taxon_id))
+    fc_vals <- diff_sub$log2_fold_change[match_idx]
+    p_vals  <- if ("wilcox_p_value" %in% colnames(diff_sub)) diff_sub$wilcox_p_value[match_idx] else NA
+    fc_vals[is.na(fc_vals)] <- 0
+
+    diff_sub <- data.frame(taxon_id = all_taxa,
+                           log2_fold_change = fc_vals,
+                           p_adj = ifelse(is.na(p_vals), 1, p_vals),
+                           stringsAsFactors = FALSE)
+
     test_label <- "Wilcoxon, p < 0.05"
   }
 
@@ -419,5 +432,8 @@ make_heat_tree("Temp", ref_level = "14", treat_level = "20",
                ref_label = "14°C", treat_label = "20°C")
 make_heat_tree("Pop", "SE", "PT", "HeatTree_Pop_PT_vs_SE.png")
 make_heat_tree("Phosphorus", "0", "3", "HeatTree_Phosphorus_3_vs_0.png")
+make_heat_tree("Diet", ref_level = "P", treat_level = "A",
+               file_name = "HeatTree_Diet_Animal_vs_Plant.png",
+               ref_label = "Vegetal (P)", treat_label = "Animal (A)")
 
 cat("All Heat Trees generated successfully!\n")

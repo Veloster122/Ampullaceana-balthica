@@ -86,6 +86,7 @@ rule all_phase2:
         "Outputs/HeatTree_Temp_20_vs_14.png",
         "Outputs/HeatTree_Pop_PT_vs_SE.png",
         "Outputs/HeatTree_Phosphorus_3_vs_0.png",
+        "Outputs/HeatTree_Diet_Animal_vs_Plant.png",
         # Relative Abundance stacked bar plots
         "Outputs/RelativeAbundance_Diet.png",
         "Outputs/RelativeAbundance_Temp.png",

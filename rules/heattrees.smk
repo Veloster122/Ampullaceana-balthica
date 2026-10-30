@@ -4,7 +4,7 @@
 rule heattrees_metacoder:
     """Generate taxonomic Heat Trees using metacoder to visualize differential abundance."""
     input:
-        feature_tbl = config["directory_name"]["artifact"] + "/Ampullaceana_freq_table.qza",
+        feature_tbl = config["directory_name"]["artifact"] + "/" + config["tables"]["taxa_freq"],
         taxonomy    = config["directory_name"]["artifact"] + "/Ampullaceana_taxonomy.qza",
         metadata    = config["raw"]["metadata"],
         script      = "scripts/HeatTrees_metacoder.R"
@@ -14,8 +14,10 @@ rule heattrees_metacoder:
         out_pop_png  = "Outputs/HeatTree_Pop_PT_vs_SE.png",
         out_pop_pdf  = "Outputs/HeatTree_Pop_PT_vs_SE.pdf",
         out_phos_png = "Outputs/HeatTree_Phosphorus_3_vs_0.png",
-        out_phos_pdf = "Outputs/HeatTree_Phosphorus_3_vs_0.pdf"
+        out_phos_pdf = "Outputs/HeatTree_Phosphorus_3_vs_0.pdf",
+        out_diet_png = "Outputs/HeatTree_Diet_Animal_vs_Plant.png",
+        out_diet_pdf = "Outputs/HeatTree_Diet_Animal_vs_Plant.pdf"
     shell:
         """
-        Rscript {input.script} {input.feature_tbl} {input.taxonomy} {input.metadata} Outputs/
+        Rscript {input.script} {input.feature_tbl} {input.taxonomy} {input.metadata} Outputs/ wilcoxon
         """
