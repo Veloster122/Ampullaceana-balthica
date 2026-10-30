@@ -392,7 +392,7 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
                            p_adj = ifelse(is.na(p_vals), 1, p_vals),
                            stringsAsFactors = FALSE)
 
-    test_label <- "Wilcoxon, p < 0.05"
+    test_label <- "p < 0.05"
   }
 
   # Merge back
