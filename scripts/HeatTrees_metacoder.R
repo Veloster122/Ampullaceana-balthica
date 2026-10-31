@@ -321,13 +321,39 @@ glmm_res <- if (method == "glmm") run_taxon_glmms() else NULL
 # treat_label / ref_label: optional display strings for titles/axis (e.g. "20°C")
 # treat_level / ref_level: actual values in the metadata column (e.g. "20")
 make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
-                           ref_label = NULL, treat_label = NULL) {
+                           ref_label = NULL, treat_label = NULL, group_label = NULL) {
+
+  # Friendly fallback: map Portuguese names to actual metadata column names
+  if (group_col %in% c("Fósforo", "Fosforo", "fosforo", "fósforo") && !"Fósforo" %in% colnames(metadata)) {
+    if (is.null(group_label)) group_label <- "Fósforo"
+    group_col <- "Phosphorus"
+  }
+  if (group_col %in% c("Temperatura", "temperatura") && !"Temperatura" %in% colnames(metadata)) {
+    if (is.null(group_label)) group_label <- "Temperatura"
+    group_col <- "Temp"
+  }
+  if (group_col %in% c("População", "Populacao", "populacao") && !"População" %in% colnames(metadata)) {
+    if (is.null(group_label)) group_label <- "População"
+    group_col <- "Pop"
+  }
+  if (group_col %in% c("Dieta", "dieta") && !"Dieta" %in% colnames(metadata)) {
+    if (is.null(group_label)) group_label <- "Dieta"
+    group_col <- "Diet"
+  }
 
   # Fall back to metadata values if no display labels provided
   if (is.null(ref_label))   ref_label   <- ref_level
   if (is.null(treat_label)) treat_label <- treat_level
+  if (is.null(group_label)) {
+    group_label <- switch(group_col,
+                          "Phosphorus" = "Fósforo",
+                          "Temp"       = "Temperatura",
+                          "Pop"        = "População",
+                          "Diet"       = "Dieta",
+                          group_col)
+  }
 
-  cat("Generating Heat Tree for", group_col, ":", treat_label, "vs", ref_label, "...\n")
+  cat("Generating Heat Tree for", group_label, ":", treat_label, "vs", ref_label, "...\n")
 
   if (method == "glmm") {
     # Ensure all taxa in the tree have a value (0 = no difference / not significant)
@@ -408,12 +434,11 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
                  node_color_trans = "linear",
                  node_color_interval = c(-3, 3),
                  edge_color_range = c("darkolivegreen4", "gray80", "firebrick"),
-                 node_size_axis_label = "ASVs count",
+                 node_size_axis_label = "Contagem de ASVs",
                  node_color_axis_label = paste0("Log2 FC (", treat_label, " vs ", ref_label, ")"),
                  layout = "fruchterman-reingold") +
-    ggtitle(paste0("Heat Tree: ", group_col, " (", treat_label, " vs ", ref_label, ")")) +
-    labs(subtitle = paste0("Vermelho: Mais abundante em ", treat_label, "  |  Verde: Mais abundante em ", ref_label,
-                           "  (", test_label, ")")) +
+    ggtitle(paste0("Heat Tree: ", group_label, " (", treat_label, " vs ", ref_label, ")")) +
+    labs(subtitle = paste0("Vermelho: Mais abundante em ", treat_label, "  |  Verde: Mais abundante em ", ref_label)) +
     theme(plot.title    = element_text(size = 34, face = "bold",   hjust = 0.5, margin = margin(b = 10)),
           plot.subtitle = element_text(size = 24, face = "italic", hjust = 0.5, margin = margin(b = 20)))
 
@@ -429,11 +454,19 @@ make_heat_tree <- function(group_col, ref_level, treat_level, file_name,
 # treat_label / ref_label control display text; treat_level / ref_level must match metadata exactly
 make_heat_tree("Temp", ref_level = "14", treat_level = "20",
                file_name = "HeatTree_Temp_20_vs_14.png",
-               ref_label = "14°C", treat_label = "20°C")
-make_heat_tree("Pop", "SE", "PT", "HeatTree_Pop_PT_vs_SE.png")
-make_heat_tree("Phosphorus", "0", "3", "HeatTree_Phosphorus_3_vs_0.png")
+               ref_label = "14°C", treat_label = "20°C",
+               group_label = "Temperatura")
+make_heat_tree("Pop", ref_level = "SE", treat_level = "PT",
+               file_name = "HeatTree_Pop_PT_vs_SE.png",
+               ref_label = "SE", treat_label = "PT",
+               group_label = "População")
+make_heat_tree("Phosphorus", ref_level = "0", treat_level = "3",
+               file_name = "HeatTree_Phosphorus_3_vs_0.png",
+               ref_label = "0", treat_label = "3",
+               group_label = "Fósforo")
 make_heat_tree("Diet", ref_level = "P", treat_level = "A",
                file_name = "HeatTree_Diet_Animal_vs_Plant.png",
-               ref_label = "Vegetal (P)", treat_label = "Animal (A)")
+               ref_label = "Vegetal (P)", treat_label = "Animal (A)",
+               group_label = "Dieta")
 
 cat("All Heat Trees generated successfully!\n")

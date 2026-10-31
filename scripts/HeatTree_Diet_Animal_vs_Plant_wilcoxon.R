@@ -176,11 +176,11 @@ p <- heat_tree(obj,
                node_color_trans = "linear",
                node_color_interval = c(-3, 3),
                edge_color_range = c("darkolivegreen4", "gray80", "firebrick"),
-               node_size_axis_label = "ASVs count",
+               node_size_axis_label = "Contagem de ASVs",
                node_color_axis_label = "Log2 FC (Animal vs Vegetal)",
                layout = "fruchterman-reingold") +
   ggtitle("Heat Tree: Dieta (Animal vs Vegetal)") +
-  labs(subtitle = "Vermelho: Mais abundante em Dieta Animal (A)  |  Verde: Mais abundante em Dieta Vegetal (P)  (Wilcoxon, p < 0.05)") +
+  labs(subtitle = "Vermelho: Mais abundante em Dieta Animal (A)  |  Verde: Mais abundante em Dieta Vegetal (P)") +
   theme(plot.title    = element_text(size = 34, face = "bold",   hjust = 0.5, margin = margin(b = 10)),
         plot.subtitle = element_text(size = 24, face = "italic", hjust = 0.5, margin = margin(b = 20)))
 
