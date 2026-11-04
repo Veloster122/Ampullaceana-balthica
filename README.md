@@ -166,7 +166,7 @@ A aplicação abre no navegador (`http://localhost:8501`) e permite:
 
 ## 👥 Autoria
 
-Desenvolvido no âmbito do estágio e dissertação de mestrado no **Centro de Ecologia, Evolução e Alterações Ambientais (cE3c)**.
+Desenvolvido no âmbito do estágio e relatório final de curso da licenciatura no **Centro de Ecologia, Evolução e Alterações Ambientais (cE3c)**.
 
 
 ---
