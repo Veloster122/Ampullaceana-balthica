@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Ampullaceana balthica 16S rRNA Gut Microbiome Pipeline"
+version: 1.0.0
+date-released: 2026-11-04
+license: MIT
+repository-code: "https://github.com/Veloster122/Ampullaceana-balthica"
+authors:
+  - family-names: "Moura"
+    given-names: "Renato Yuji Ishikawa de"
+    email: "renatinho.ishikawa@gmail.com"
+    affiliation: "Centro de Ecologia, Evolução e Alterações Ambientais (cE3c), Faculdade de Ciências da Universidade de Lisboa / Escola Superior de Tecnologia do Barreiro (ESTBarreiro - IPS)"
+keywords:
+  - "microbiome"
+  - "16S rRNA"
+  - "Ampullaceana balthica"
+  - "Radix balthica"
+  - "QIIME 2"
+  - "Snakemake"
+  - "GLMM"
+  - "metacoder"
+  - "bioinformatics"
+abstract: >-
+  Reproducible end-to-end bioinformatics and statistical pipeline for 16S rRNA
+  amplicon sequencing data of the gut microbiome of Ampullaceana balthica.
+  Built with Snakemake and QIIME 2, integrating quality control (fastp),
+  denoising (DADA2), taxonomic classification (SILVA 138.2), phylogenetic
+  diversity, advanced Generalized Linear Mixed Models (glmmTMB), and
+  differential abundance visualizations via metacoder Heat Trees.
