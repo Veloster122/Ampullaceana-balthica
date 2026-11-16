@@ -309,6 +309,50 @@ plot_phosphorus_interactions <- function(model, ylab_name, metric_col, out_dir) 
     ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop_P", p_lvl, ".png")),
            plot = p_single, width = 10, height = 7, dpi = 300)
   }
+
+  # Alternativa 3: Interação Direta 2-Way: Temperatura × Fósforo
+  emm_tp <- tryCatch(
+    as.data.frame(emmeans::emmeans(model, ~ Temp * Phosphorus)),
+    error = function(e) NULL
+  )
+  if (!is.null(emm_tp)) {
+    if ("asymp.LCL" %in% colnames(emm_tp)) {
+      emm_tp$ymin <- emm_tp$asymp.LCL
+      emm_tp$ymax <- emm_tp$asymp.UCL
+    } else if ("lower.CL" %in% colnames(emm_tp)) {
+      emm_tp$ymin <- emm_tp$lower.CL
+      emm_tp$ymax <- emm_tp$upper.CL
+    } else {
+      emm_tp$ymin <- emm_tp$emmean - 1.96 * emm_tp$SE
+      emm_tp$ymax <- emm_tp$emmean + 1.96 * emm_tp$SE
+    }
+    emm_tp$Temp_Label <- factor(ifelse(emm_tp$Temp == "14", "14°C", "20°C"), levels = c("14°C", "20°C"))
+    emm_tp$Phosphorus <- factor(emm_tp$Phosphorus, levels = c("0", "3"))
+
+    p_tp <- ggplot(emm_tp, aes(x = Temp_Label, y = emmean, color = Phosphorus, group = Phosphorus,
+                               linetype = Phosphorus, shape = Phosphorus)) +
+      geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.15, linewidth = 0.8, position = position_dodge(0.25)) +
+      geom_line(linewidth = 1.1, position = position_dodge(0.25)) +
+      geom_point(size = 3.8, position = position_dodge(0.25)) +
+      scale_color_manual(name = "Fósforo", values = c("0" = "#4A5568", "3" = "#9400D3"),
+                         labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+      scale_linetype_manual(name = "Fósforo", values = c("0" = "solid", "3" = "dashed"),
+                            labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+      scale_shape_manual(name = "Fósforo", values = c("0" = 16, "3" = 17),
+                         labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+      labs(
+        title = paste("Interação Temperatura × Fósforo —", ylab_name),
+        subtitle = "Médias marginais estimadas (emmeans ± 95% IC)",
+        x = "Temperatura",
+        y = ylab_name
+      ) +
+      clean_theme
+
+    ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Phosphorus.png")),
+           plot = p_tp, width = 8, height = 6, dpi = 300)
+    ggsave(filename = file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Phosphorus.pdf")),
+           plot = p_tp, width = 8, height = 6)
+  }
 }
 # ---- Core Runner ----
 run_analysis <- function(metric_col, ylab_name) {
@@ -363,6 +407,7 @@ run_analysis <- function(metric_col, ylab_name) {
   main_effects2(best_model, "Diet", "Temp", metric_col, log_file)
   main_effects2(best_model, "Diet", "Pop", metric_col, log_file)
   main_effects2(best_model, "Temp", "Pop", metric_col, log_file)
+  main_effects2(best_model, "Temp", "Phosphorus", metric_col, log_file)
   
   # 5. Interaction Plots (cat_plot)
   # Pop vs Temp separated by Diet

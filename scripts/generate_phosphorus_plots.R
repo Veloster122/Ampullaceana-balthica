@@ -195,6 +195,48 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
     ggsave(file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Diet_by_Pop_P", p_lvl, ".png")),
            plot = p_single, width = 10, height = 7, dpi = 300)
   }
+  
+  # -------------------------------------------------------------------------
+  # ALTERNATIVA 3: Interação Direta 2-Way (Temperatura × Fósforo)
+  # -------------------------------------------------------------------------
+  cat("  -> Saving Alternativa 3 (Direct Temp * Phosphorus 2-way interaction)...\n")
+  emm_tp <- as.data.frame(emmeans(model, ~ Temp * Phosphorus))
+  if ("asymp.LCL" %in% colnames(emm_tp)) {
+    emm_tp$ymin <- emm_tp$asymp.LCL
+    emm_tp$ymax <- emm_tp$asymp.UCL
+  } else if ("lower.CL" %in% colnames(emm_tp)) {
+    emm_tp$ymin <- emm_tp$lower.CL
+    emm_tp$ymax <- emm_tp$upper.CL
+  } else {
+    emm_tp$ymin <- emm_tp$emmean - 1.96 * emm_tp$SE
+    emm_tp$ymax <- emm_tp$emmean + 1.96 * emm_tp$SE
+  }
+  emm_tp$Temp_Label <- factor(ifelse(emm_tp$Temp == "14", "14°C", "20°C"), levels = c("14°C", "20°C"))
+  emm_tp$Phosphorus <- factor(emm_tp$Phosphorus, levels = c("0", "3"))
+
+  p_tp <- ggplot(emm_tp, aes(x = Temp_Label, y = emmean, color = Phosphorus, group = Phosphorus,
+                             linetype = Phosphorus, shape = Phosphorus)) +
+    geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.15, linewidth = 0.8, position = position_dodge(0.25)) +
+    geom_line(linewidth = 1.1, position = position_dodge(0.25)) +
+    geom_point(size = 3.8, position = position_dodge(0.25)) +
+    scale_color_manual(name = "Fósforo", values = c("0" = "#4A5568", "3" = "#9400D3"),
+                       labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+    scale_linetype_manual(name = "Fósforo", values = c("0" = "solid", "3" = "dashed"),
+                          labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+    scale_shape_manual(name = "Fósforo", values = c("0" = 16, "3" = 17),
+                       labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+    labs(
+      title = paste("Interação Temperatura × Fósforo —", ylab_name),
+      subtitle = "Médias marginais estimadas (emmeans ± 95% IC)",
+      x = "Temperatura",
+      y = ylab_name
+    ) +
+    clean_theme
+
+  ggsave(file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Phosphorus.png")),
+         plot = p_tp, width = 8, height = 6, dpi = 300)
+  ggsave(file.path(out_dir, paste0(metric_col, "_interaction_Temp_vs_Phosphorus.pdf")),
+         plot = p_tp, width = 8, height = 6)
 }
 
 generate_phosphorus_plots("observed_features", "Observed Features (ASVs)")
