@@ -335,11 +335,11 @@ plot_phosphorus_interactions <- function(model, ylab_name, metric_col, out_dir) 
       geom_line(linewidth = 1.1, position = position_dodge(0.25)) +
       geom_point(size = 3.8, position = position_dodge(0.25)) +
       scale_color_manual(name = "Fósforo", values = c("0" = "#4A5568", "3" = "#9400D3"),
-                         labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                         labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
       scale_linetype_manual(name = "Fósforo", values = c("0" = "solid", "3" = "dashed"),
-                            labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                            labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
       scale_shape_manual(name = "Fósforo", values = c("0" = 16, "3" = 17),
-                         labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                         labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
       labs(
         title = paste("Interação Temperatura × Fósforo —", ylab_name),
         subtitle = "Médias marginais estimadas (emmeans ± 95% IC)",
@@ -435,7 +435,7 @@ plot_metric <- function(metric_name, title, output_file) {
                 alpha=0.8, size=1.5) +
     facet_wrap(~Pop) +
     scale_fill_manual(values = c("A" = "#F8766D", "M" = "#619CFF", "P" = "#00BA38")) +
-    scale_color_manual(values = c("0" = "grey40", "3" = "#9400D3"), labels = c("Ausente (0)", "Presente (3)")) +
+    scale_color_manual(values = c("0" = "grey40", "3" = "#9400D3"), labels = c("0" = "Baseline (0)", "3" = "Suplementado (3)")) +
     theme_bw() +
     theme(panel.grid.minor = element_blank(),
           panel.grid.major.x = element_blank(),

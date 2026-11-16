@@ -99,7 +99,7 @@ clean_theme <- theme_bw() +
   )
 
 phos_colors <- c("0" = "#4A5568", "3" = "#9400D3")
-phos_labels <- c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")
+phos_labels <- c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")
 phos_shapes <- c("0" = 16, "3" = 17)
 phos_lines  <- c("0" = "solid", "3" = "dashed")
 dodge_val   <- position_dodge(width = 0.25)

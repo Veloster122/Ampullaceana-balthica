@@ -220,11 +220,11 @@ generate_phosphorus_plots <- function(metric_col, ylab_name) {
     geom_line(linewidth = 1.1, position = position_dodge(0.25)) +
     geom_point(size = 3.8, position = position_dodge(0.25)) +
     scale_color_manual(name = "Fósforo", values = c("0" = "#4A5568", "3" = "#9400D3"),
-                       labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                       labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
     scale_linetype_manual(name = "Fósforo", values = c("0" = "solid", "3" = "dashed"),
-                          labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                          labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
     scale_shape_manual(name = "Fósforo", values = c("0" = 16, "3" = 17),
-                       labels = c("0" = "P0 (Ausente)", "3" = "P3 (+3% Fósforo)")) +
+                       labels = c("0" = "P0 (Baseline)", "3" = "P3 (+3% Fósforo)")) +
     labs(
       title = paste("Interação Temperatura × Fósforo —", ylab_name),
       subtitle = "Médias marginais estimadas (emmeans ± 95% IC)",
